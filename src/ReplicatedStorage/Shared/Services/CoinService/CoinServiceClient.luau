@@ -111,15 +111,6 @@ function CoinServiceClient.onCoinCollected(_self: CoinServiceClient, coinId: str
 	destroyCoin(coinId)
 end
 
-function CoinServiceClient.onMorphPurchased(_self: CoinServiceClient, morphName: string): ()
-	-- Morph was successfully purchased - DataService will handle the update
-	print("Purchased morph: " .. morphName)
-end
-
-function CoinServiceClient.purchaseMorph(self: CoinServiceClient, morphName: string): ()
-	self.networker:fire("PurchaseCoinMorph", morphName)
-end
-
 function CoinServiceClient.init(self: CoinServiceClient): ()
 	self.networker = Networker.client.new("Coin", self)
 

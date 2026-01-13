@@ -130,45 +130,10 @@ function CoinServiceServer.GetPlayerCoins(_self: CoinServiceServer, player: Play
 	return DataService:get(player, { "coins" }) or 0
 end
 
-function CoinServiceServer.PurchaseCoinMorph(self: CoinServiceServer, player: Player, morphName: string): boolean
-	local CoinMorphs = require(ReplicatedStorage.Shared.Modules.Game.CoinMorphs)
-	local morphData = CoinMorphs[morphName]
-	if not morphData then
-		return false
-	end
-
-	local currentCoins = DataService:get(player, { "coins" }) or 0
-	if currentCoins < morphData.cost then
-		return false
-	end
-
-	-- Check if already unlocked
-	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
-	if unlockedMorphs[morphName] then
-		return false
-	end
-
-	-- Deduct coins
-	local newCoins = currentCoins - morphData.cost
-	DataService:set(player, { "coins" }, newCoins)
-	updateLeaderstats(player, newCoins)
-
-	-- Unlock morph
-	DataService:set(player, { "unlockedMorph", morphName }, {
-		obtainTime = os.time(),
-	})
-
-	-- Notify client
-	self.networker:fire(player, "onMorphPurchased", morphName)
-
-	return true
-end
-
 function CoinServiceServer.init(self: CoinServiceServer): ()
 	self.networker = Networker.server.new("Coin", self, {
 		self.CollectCoin :: any,
 		self.GetPlayerCoins :: any,
-		self.PurchaseCoinMorph :: any,
 	})
 
 	local function initPlayer(player: Player)

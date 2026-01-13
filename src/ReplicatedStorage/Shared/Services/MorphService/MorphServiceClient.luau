@@ -76,6 +76,15 @@ function MorphServiceClient.purchaseMorph(self: MorphServiceClient, morph: strin
 	self.networker:fire("purchaseMorph", morph)
 end
 
+function MorphServiceClient.purchaseCoinMorph(self: MorphServiceClient, morphName: string): ()
+	self.networker:fire("purchaseCoinMorph", morphName)
+end
+
+function MorphServiceClient.onCoinMorphPurchased(_self: MorphServiceClient, morphName: string): ()
+	-- Morph was successfully purchased with coins - DataService will handle the update
+	print("Purchased coin morph: " .. morphName)
+end
+
 function MorphServiceClient._initData(self: MorphServiceClient, data): ()
 	self.morphData = data
 

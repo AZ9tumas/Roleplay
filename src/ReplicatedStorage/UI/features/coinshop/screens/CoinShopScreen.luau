@@ -6,7 +6,7 @@ local CoinMorphs = require(ReplicatedStorage.Shared.Modules.Game.CoinMorphs)
 local Menu = require(ReplicatedStorage.UI.core.components.Menu)
 local TextLabel = require(ReplicatedStorage.UI.core.components.TextLabel)
 local CoinMorphContainer = require(ReplicatedStorage.UI.features.coinshop.components.CoinMorphContainer)
-local CoinServiceClient = require(ReplicatedStorage.Shared.Services.CoinService.CoinServiceClient)
+local MorphServiceClient = require(ReplicatedStorage.Shared.Services.MorphService.MorphServiceClient)
 
 local e = React.createElement
 
@@ -101,7 +101,7 @@ return function()
 			cost = morphData.cost,
 			isUnlocked = isUnlocked,
 			onPurchase = function()
-				CoinServiceClient:purchaseMorph(morphName)
+				MorphServiceClient:purchaseCoinMorph(morphName)
 			end,
 		})
 	end
