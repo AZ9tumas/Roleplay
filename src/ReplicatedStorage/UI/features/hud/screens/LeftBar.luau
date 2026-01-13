@@ -45,11 +45,29 @@ local function shopButton()
 	})
 end
 
+local function coinShopButton()
+	return e(HudButton, {
+		ButtonIcon = ImageIds.coin,
+		ButtonTitle = "Coins\nShop",
+		ImageId = ImageIds.hudbuttons.orange,
+		TitleStroke = Color3.fromRGB(100, 70, 0),
+
+		Size = UDim2.fromOffset(188, 155),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		BackgroundTransparency = 1,
+
+		OnActivated = function()
+			Menu.set("CoinShop")
+		end,
+	})
+end
+
 return function()
 	local shown, setShown = React.useState(true)
 	return e(SlideOutFrame, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Size = UDim2.fromOffset(150, 400),
+		Size = UDim2.fromOffset(150, 600),
 		BackgroundTransparency = 1,
 
 		From = UDim2.fromScale(0.07, 0.5),
@@ -62,5 +80,6 @@ return function()
 		}),
 		MorphButton = e(morphButton),
 		ShopButton = e(shopButton),
+		CoinShopButton = e(coinShopButton),
 	})
 end

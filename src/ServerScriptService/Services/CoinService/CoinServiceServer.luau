@@ -4,6 +4,7 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Networker = require(ReplicatedStorage.Packages.Networker)
+local DataService = require(ReplicatedStorage.Packages.DataService).server
 local CoinServiceUtil = require(ReplicatedStorage.Shared.Services.CoinService.CoinServiceUtil)
 
 type CoinData = CoinServiceUtil.CoinData
@@ -28,6 +29,36 @@ local function getCoinPathParts(): { BasePart }
 	end
 
 	return parts
+end
+
+local function createLeaderstats(player: Player): ()
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
+
+	local coinsValue = Instance.new("IntValue")
+	coinsValue.Name = "Coins"
+	coinsValue.Value = 0
+	coinsValue.Parent = leaderstats
+
+	-- Wait for player data and update leaderstats
+	task.spawn(function()
+		local playerData = DataService:waitForData(player)
+		if playerData then
+			local coins = playerData:get({ "coins" }) or 0
+			coinsValue.Value = coins
+		end
+	end)
+end
+
+local function updateLeaderstats(player: Player, coins: number): ()
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if leaderstats then
+		local coinsValue = leaderstats:FindFirstChild("Coins") :: IntValue?
+		if coinsValue then
+			coinsValue.Value = coins
+		end
+	end
 end
 
 function CoinServiceServer.GenerateCoinPositions(_self: CoinServiceServer, player: Player): { CoinData }
@@ -83,7 +114,11 @@ function CoinServiceServer.CollectCoin(self: CoinServiceServer, player: Player, 
 	-- Remove coin from player's data (coin collected)
 	playerCoins[coinId] = nil
 
-	print("coin was collected: " .. coinId)
+	-- Add coin to player's data
+	local currentCoins = DataService:get(player, { "coins" }) or 0
+	local newCoins = currentCoins + 1
+	DataService:set(player, { "coins" }, newCoins)
+	updateLeaderstats(player, newCoins)
 
 	-- Notify client that coin was collected
 	self.networker:fire(player, "onCoinCollected", coinId)
@@ -91,12 +126,53 @@ function CoinServiceServer.CollectCoin(self: CoinServiceServer, player: Player, 
 	return true
 end
 
+function CoinServiceServer.GetPlayerCoins(_self: CoinServiceServer, player: Player): number
+	return DataService:get(player, { "coins" }) or 0
+end
+
+function CoinServiceServer.PurchaseCoinMorph(self: CoinServiceServer, player: Player, morphName: string): boolean
+	local CoinMorphs = require(ReplicatedStorage.Shared.Modules.Game.CoinMorphs)
+	local morphData = CoinMorphs[morphName]
+	if not morphData then
+		return false
+	end
+
+	local currentCoins = DataService:get(player, { "coins" }) or 0
+	if currentCoins < morphData.cost then
+		return false
+	end
+
+	-- Check if already unlocked
+	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+	if unlockedMorphs[morphName] then
+		return false
+	end
+
+	-- Deduct coins
+	local newCoins = currentCoins - morphData.cost
+	DataService:set(player, { "coins" }, newCoins)
+	updateLeaderstats(player, newCoins)
+
+	-- Unlock morph
+	DataService:set(player, { "unlockedMorph", morphName }, {
+		obtainTime = os.time(),
+	})
+
+	-- Notify client
+	self.networker:fire(player, "onMorphPurchased", morphName)
+
+	return true
+end
+
 function CoinServiceServer.init(self: CoinServiceServer): ()
 	self.networker = Networker.server.new("Coin", self, {
 		self.CollectCoin :: any,
+		self.GetPlayerCoins :: any,
+		self.PurchaseCoinMorph :: any,
 	})
 
 	local function initPlayer(player: Player)
+		createLeaderstats(player)
 		local coins = self:GenerateCoinPositions(player)
 		self.networker:fire(player, "initCoins", coins)
 	end
