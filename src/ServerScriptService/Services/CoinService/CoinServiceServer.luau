@@ -41,6 +41,11 @@ local function createLeaderstats(player: Player): ()
 	coinsValue.Value = 0
 	coinsValue.Parent = leaderstats
 
+	coinsValue.Changed:Connect(function(newValue: number)
+		DataService:set(player, { "coins" }, coinsValue.Value, false)
+		print("Updated coins for", player.Name, "to", newValue)
+	end)
+
 	-- Wait for player data and update leaderstats
 	task.spawn(function()
 		local playerData = DataService:waitForData(player)

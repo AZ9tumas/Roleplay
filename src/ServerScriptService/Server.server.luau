@@ -9,7 +9,7 @@ local CoinServiceServer = require(ServerScriptService.Services.CoinService.CoinS
 DataService.server:init({
 	template = DataTemplate,
 	profileStoreIndex = "Test#1",
-	useMock = true,
+	useMock = false,
 })
 MorphServiceServer:init(true)
 MonetizationServiceServer:init()
