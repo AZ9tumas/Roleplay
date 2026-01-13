@@ -116,7 +116,7 @@ function CoinServiceClient.init(self: CoinServiceClient): ()
 
 	-- Breathing animation using sin waves
 	local startTime = os.clock()
-	RunService.RenderStepped:Connect(function(_dt: number)
+	RunService.Heartbeat:Connect(function(_dt: number)
 		local elapsed = os.clock() - startTime
 		local breathPhase = math.sin(elapsed * CoinServiceUtil.BREATH_SPEED)
 
