@@ -9,10 +9,11 @@ export type CoinMorphData = {
 	},
 }
 
+-- Using existing morph templates that work with Robux purchases as base templates
 local CoinMorphs: { [string]: CoinMorphData } = {
-	["CoinMorph1"] = {
+	["LimitedMorphTest"] = {
 		cost = 10,
-		displayName = "Coin Morph 1",
+		displayName = "Limited Morph Test",
 		animations = {
 			walk = "rbxassetid://118681492030786",
 			run = "rbxassetid://118681492030786",
@@ -20,9 +21,9 @@ local CoinMorphs: { [string]: CoinMorphData } = {
 			jumpscare = "rbxassetid://126415726327787",
 		},
 	},
-	["CoinMorph2"] = {
+	["Trapper"] = {
 		cost = 10,
-		displayName = "Coin Morph 2",
+		displayName = "Trapper",
 		animations = {
 			walk = "rbxassetid://118681492030786",
 			run = "rbxassetid://118681492030786",
