@@ -83,6 +83,8 @@ function CoinServiceServer.CollectCoin(self: CoinServiceServer, player: Player, 
 	-- Remove coin from player's data (coin collected)
 	playerCoins[coinId] = nil
 
+	print("coin was collected: " .. coinId)
+
 	-- Notify client that coin was collected
 	self.networker:fire(player, "onCoinCollected", coinId)
 
