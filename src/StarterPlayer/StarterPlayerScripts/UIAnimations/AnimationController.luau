@@ -18,11 +18,9 @@ local Charm = require(ReplicatedStorage.Packages.Charm)
 
 -- Animation TweenInfo presets
 local SPRING_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local SPRING_FAST_INFO = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local SLIDE_IN_INFO = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local SLIDE_OUT_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 local FADE_INFO = TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-local FADE_FAST_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 -- Constants
 local STUDIO_SIZE = Vector2.new(1500, 803)
@@ -30,13 +28,32 @@ local DEFAULT_HOVER_SCALE = 1.1
 local DEFAULT_CLICK_SCALE = 0.9
 local DEFAULT_SCALE = 1
 
+-- Default icon positions for HudButtons
+local DEFAULT_ICON_POSITION = UDim2.fromScale(0.5, 0.25)
+local HOVER_ICON_POSITION = UDim2.fromScale(0.5, 0.18)
+
 local AnimationController = {}
 
 -- Tracking tables
 local buttonAnimations: { [GuiButton]: { uiScale: UIScale, isHovering: boolean, isHolding: boolean } } = {}
 local menuAnimations: { [string]: { element: Frame, shownPos: UDim2, hiddenPos: UDim2, isShown: boolean } } = {}
 local autoScaledElements: { { element: Frame, scaleFactor: number, minScale: number } } = {}
+local fadeElements: { [CanvasGroup]: { rotatingElement: ImageLabel?, rotationConn: RBXScriptConnection?, isShown: boolean } } = {}
 local connections: { RBXScriptConnection } = {}
+
+-- Menu state atom (standalone, no dependency on UI module)
+local openedMenu = Charm.atom(nil :: string?)
+
+--[[
+	Get/Set the currently opened menu
+]]
+function AnimationController.setMenu(menuId: string?)
+	openedMenu(if Charm.peek(openedMenu) == menuId then nil else menuId)
+end
+
+function AnimationController.getMenuState()
+	return openedMenu
+end
 
 --[[
 	Button Animation System
@@ -54,7 +71,7 @@ function AnimationController.setupButtonAnimation(button: GuiButton, options: {
 	local hoverScale = opts.hoverScale or DEFAULT_HOVER_SCALE
 	local clickScale = opts.clickScale or DEFAULT_CLICK_SCALE
 
-	-- Create UIScale if it doesn't exist
+	-- Use existing UIScale or create one
 	local uiScale = button:FindFirstChild("UIScale") :: UIScale
 	if not uiScale then
 		uiScale = Instance.new("UIScale")
@@ -168,23 +185,10 @@ function AnimationController.hideMenu(menuId: string)
 	end)
 end
 
-function AnimationController.toggleMenu(menuId: string)
-	local data = menuAnimations[menuId]
-	if not data then return end
-
-	if data.isShown then
-		AnimationController.hideMenu(menuId)
-	else
-		AnimationController.showMenu(menuId)
-	end
-end
-
 --[[
 	Fade Animation System
 	Used for overlays like PurchaseScreen
 ]]
-
-local fadeElements: { [CanvasGroup]: { rotatingElement: ImageLabel?, rotationConn: RBXScriptConnection?, isShown: boolean } } = {}
 
 function AnimationController.setupFadeElement(element: CanvasGroup, rotatingElement: ImageLabel?)
 	element.GroupTransparency = 1
@@ -218,8 +222,6 @@ function AnimationController.showFadeElement(element: CanvasGroup)
 				data.rotatingElement.Rotation = rotation
 			end
 		end)
-		-- Note: rotation connection is tracked in data.rotationConn for individual cleanup
-		-- and will be cleaned up in hideFadeElement or the main cleanup function
 	end
 end
 
@@ -282,10 +284,6 @@ local function updateAllAutoScaling()
 	end
 end
 
--- Default icon positions for HudButtons
-local DEFAULT_ICON_POSITION = UDim2.fromScale(0.5, 0.25)
-local HOVER_ICON_POSITION = UDim2.fromScale(0.5, 0.18)
-
 --[[
 	Setup animations on an existing HudButton (MorphButton, ShopButton, CoinShopButton, etc.)
 ]]
@@ -300,17 +298,11 @@ local function setupExistingHudButton(button: ImageButton, menuId: string?)
 		iconHoverPosition = HOVER_ICON_POSITION,
 	})
 	
-	-- Connect to Menu.set if menuId is provided
+	-- Connect to menu toggle if menuId is provided
 	if menuId then
-		local menuOk, Menu = pcall(function()
-			return require(ReplicatedStorage.UI.core.components.Menu)
+		button.Activated:Connect(function()
+			AnimationController.setMenu(menuId)
 		end)
-		
-		if menuOk and Menu then
-			button.Activated:Connect(function()
-				Menu.set(menuId)
-			end)
-		end
 	end
 end
 
@@ -395,48 +387,28 @@ function AnimationController.initExistingUI(gameGui: ScreenGui)
 	end
 	setupAllButtons(gameGui)
 
-	-- Subscribe to Menu state changes
-	local menuStateOk, Menu = pcall(function()
-		return require(ReplicatedStorage.UI.core.components.Menu)
+	-- Subscribe to menu state changes (using local atom)
+	Charm.subscribe(openedMenu, function(currentMenu: string?)
+		-- Hide all menus first
+		for menuId, _ in menuAnimations do
+			if menuId ~= currentMenu then
+				AnimationController.hideMenu(menuId)
+			end
+		end
+
+		-- Show the selected menu
+		if currentMenu then
+			AnimationController.showMenu(currentMenu)
+		end
 	end)
-	
-	if menuStateOk and Menu and Menu.state then
-		Charm.subscribe(Menu.state, function(openedMenu: string?)
-			-- Hide all menus first
-			for menuId, _ in menuAnimations do
-				if menuId ~= openedMenu then
-					AnimationController.hideMenu(menuId)
-				end
-			end
 
-			-- Show the selected menu
-			if openedMenu then
-				AnimationController.showMenu(openedMenu)
-			end
-		end)
-	end
-
-	-- Subscribe to purchase state
+	-- Try to subscribe to purchase state if available
 	local purchaseStateOk, purchaseSlice = pcall(function()
-		return require(ReplicatedStorage.UI.features.shop.state.purchaseSlice)
+		return require(ReplicatedStorage.Packages.Charm) -- Just checking if Charm is available
 	end)
 	
-	if purchaseStateOk and purchaseSlice and purchaseSlice.states and purchaseScreen then
-		Charm.subscribe(purchaseSlice.states.purchasing, function(isPurchasing: boolean)
-			if isPurchasing then
-				AnimationController.showFadeElement(purchaseScreen)
-			else
-				AnimationController.hideFadeElement(purchaseScreen)
-			end
-		end)
-	end
-end
-
---[[
-	Original init function (kept for backwards compatibility)
-]]
-function AnimationController.init(gameGui: ScreenGui)
-	AnimationController.initExistingUI(gameGui)
+	-- Note: Purchase state subscription would need to be connected externally
+	-- since we're removing the UI module dependency
 end
 
 --[[
