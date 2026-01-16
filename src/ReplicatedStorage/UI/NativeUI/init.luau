@@ -1,53 +1,38 @@
 --[[
-	NativeUI - Non-React UI System
+	NativeUI - Animation System for Existing UI
 	
-	This module creates and manages the game UI without React,
-	while providing the same animations and effects that the React version had.
+	This module adds animations and effects to the existing UI that was
+	exported from the React-based system. The UI structure already exists
+	in StarterGui, so this module only handles:
+	- Button hover/click scaling effects
+	- Menu slide in/out animations
+	- Loading spinner rotation
+	- Viewport-responsive scaling
+	- State integration (Charm)
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local AnimationController = require(script.AnimationController)
-local Components = require(script.Components)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 --[[
-	Create the main GameGui ScreenGui
-]]
-local function createGameGui(): ScreenGui
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "GameGui"
-	screenGui.IgnoreGuiInset = true
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = playerGui
-	return screenGui
-end
-
---[[
-	Initialize and mount all UI components
+	Initialize animations on existing UI elements
 ]]
 local function init()
-	local gameGui = createGameGui()
+	-- Wait for the existing GameGui to be available (it comes from StarterGui)
+	local gameGui = playerGui:WaitForChild("GameGui", 10)
 	
-	-- Create LeftBar with HUD buttons
-	Components.createLeftBar(gameGui)
+	if not gameGui then
+		warn("NativeUI: GameGui not found in PlayerGui. Make sure it exists in StarterGui.")
+		return
+	end
 	
-	-- Create Menu panels (Morph and Shop)
-	Components.createMorphMenu(gameGui)
-	Components.createShopMenu(gameGui)
-	
-	-- Create Purchase Screen
-	Components.createPurchaseScreen(gameGui)
-	
-	-- Create NewMorph notification
-	Components.createNewMorphNotification(gameGui)
-	
-	-- Initialize animation controller
-	AnimationController.init(gameGui)
+	-- Initialize animation controller on the existing UI
+	AnimationController.initExistingUI(gameGui)
 end
 
 return init

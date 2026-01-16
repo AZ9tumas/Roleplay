@@ -282,11 +282,43 @@ local function updateAllAutoScaling()
 	end
 end
 
---[[
-	Initialization
-]]
+-- Default icon positions for HudButtons
+local DEFAULT_ICON_POSITION = UDim2.fromScale(0.5, 0.25)
+local HOVER_ICON_POSITION = UDim2.fromScale(0.5, 0.18)
 
-function AnimationController.init(gameGui: ScreenGui)
+--[[
+	Setup animations on an existing HudButton (MorphButton, ShopButton, CoinShopButton, etc.)
+]]
+local function setupExistingHudButton(button: ImageButton, menuId: string?)
+	local buttonIcon = button:FindFirstChild("ButtonIcon") :: ImageLabel
+	
+	AnimationController.setupButtonAnimation(button, {
+		hoverScale = 1.1,
+		clickScale = 0.9,
+		iconElement = buttonIcon,
+		iconDefaultPosition = DEFAULT_ICON_POSITION,
+		iconHoverPosition = HOVER_ICON_POSITION,
+	})
+	
+	-- Connect to Menu.set if menuId is provided
+	if menuId then
+		local menuOk, Menu = pcall(function()
+			return require(ReplicatedStorage.UI.core.components.Menu)
+		end)
+		
+		if menuOk and Menu then
+			button.Activated:Connect(function()
+				Menu.set(menuId)
+			end)
+		end
+	end
+end
+
+--[[
+	Initialize animations on existing UI elements
+	This is the main entry point for the existing UI structure
+]]
+function AnimationController.initExistingUI(gameGui: ScreenGui)
 	-- Setup viewport scaling listener
 	local camera = workspace.CurrentCamera
 	if camera then
@@ -294,13 +326,81 @@ function AnimationController.init(gameGui: ScreenGui)
 		updateAllAutoScaling()
 	end
 
-	-- Import Menu state for integration
+	-- Find and setup LeftBar
+	local leftBar = gameGui:FindFirstChild("LeftBar") :: Frame
+	if leftBar then
+		-- Setup auto-scaling for LeftBar
+		AnimationController.setupAutoScaling(leftBar, 1, 0)
+		
+		-- Find and setup buttons in LeftBar
+		local morphButton = leftBar:FindFirstChild("MorphButton") :: ImageButton
+		if morphButton then
+			setupExistingHudButton(morphButton, "Morph")
+		end
+		
+		local shopButton = leftBar:FindFirstChild("ShopButton") :: ImageButton
+		if shopButton then
+			setupExistingHudButton(shopButton, "Shop")
+		end
+		
+		local coinShopButton = leftBar:FindFirstChild("CoinShopButton") :: ImageButton
+		if coinShopButton then
+			setupExistingHudButton(coinShopButton, "CoinShop")
+		end
+	end
+
+	-- Find and setup menu panels (Morph, Shop, CoinShop)
+	local morphMenu = gameGui:FindFirstChild("Morph") :: Frame
+	if morphMenu then
+		AnimationController.registerMenu("Morph", morphMenu, UDim2.fromScale(0.5, 0.5), UDim2.fromScale(0.5, 1.5))
+		AnimationController.setupAutoScaling(morphMenu, 1, 0)
+	end
+
+	local shopMenu = gameGui:FindFirstChild("Shop") :: Frame
+	if shopMenu then
+		AnimationController.registerMenu("Shop", shopMenu, UDim2.fromScale(0.5, 0.5), UDim2.fromScale(0.5, 1.5))
+		AnimationController.setupAutoScaling(shopMenu, 1, 0)
+	end
+	
+	local coinShopMenu = gameGui:FindFirstChild("CoinShop") :: Frame
+	if coinShopMenu then
+		AnimationController.registerMenu("CoinShop", coinShopMenu, UDim2.fromScale(0.5, 0.5), UDim2.fromScale(0.5, 1.5))
+		AnimationController.setupAutoScaling(coinShopMenu, 1, 0)
+	end
+
+	-- Find and setup Purchase Screen
+	local purchaseScreen = gameGui:FindFirstChild("PurchaseScreen") :: CanvasGroup
+	if purchaseScreen then
+		local loadingIcon = purchaseScreen:FindFirstChild("Loading") :: ImageLabel
+		AnimationController.setupFadeElement(purchaseScreen, loadingIcon)
+	end
+
+	-- Find and setup NewMorph notification
+	local newMorph = gameGui:FindFirstChild("NewMorph") :: Frame
+	if newMorph then
+		AnimationController.setupAutoScaling(newMorph, 1, 0)
+	end
+
+	-- Setup all remaining buttons recursively for basic animations
+	local function setupAllButtons(parent: Instance)
+		for _, child in parent:GetChildren() do
+			if (child:IsA("ImageButton") or child:IsA("TextButton")) and not buttonAnimations[child] then
+				AnimationController.setupButtonAnimation(child :: GuiButton, {
+					hoverScale = 1.1,
+					clickScale = 0.9,
+				})
+			end
+			setupAllButtons(child)
+		end
+	end
+	setupAllButtons(gameGui)
+
+	-- Subscribe to Menu state changes
 	local menuStateOk, Menu = pcall(function()
 		return require(ReplicatedStorage.UI.core.components.Menu)
 	end)
 	
 	if menuStateOk and Menu and Menu.state then
-		-- Subscribe to menu state changes
 		Charm.subscribe(Menu.state, function(openedMenu: string?)
 			-- Hide all menus first
 			for menuId, _ in menuAnimations do
@@ -316,24 +416,27 @@ function AnimationController.init(gameGui: ScreenGui)
 		end)
 	end
 
-	-- Import purchase state for integration
+	-- Subscribe to purchase state
 	local purchaseStateOk, purchaseSlice = pcall(function()
 		return require(ReplicatedStorage.UI.features.shop.state.purchaseSlice)
 	end)
 	
-	if purchaseStateOk and purchaseSlice and purchaseSlice.states then
-		-- Find purchase screen
-		local purchaseScreen = gameGui:FindFirstChild("PurchaseScreen") :: CanvasGroup
-		if purchaseScreen then
-			Charm.subscribe(purchaseSlice.states.purchasing, function(isPurchasing: boolean)
-				if isPurchasing then
-					AnimationController.showFadeElement(purchaseScreen)
-				else
-					AnimationController.hideFadeElement(purchaseScreen)
-				end
-			end)
-		end
+	if purchaseStateOk and purchaseSlice and purchaseSlice.states and purchaseScreen then
+		Charm.subscribe(purchaseSlice.states.purchasing, function(isPurchasing: boolean)
+			if isPurchasing then
+				AnimationController.showFadeElement(purchaseScreen)
+			else
+				AnimationController.hideFadeElement(purchaseScreen)
+			end
+		end)
 	end
+end
+
+--[[
+	Original init function (kept for backwards compatibility)
+]]
+function AnimationController.init(gameGui: ScreenGui)
+	AnimationController.initExistingUI(gameGui)
 end
 
 --[[
