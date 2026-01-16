@@ -1,0 +1,356 @@
+--[[
+	AnimationController - Handles all UI animations
+	
+	This module provides animation utilities that replicate the React/Ripple-based
+	animations from the previous UI system:
+	- Spring-like button scaling (hover/click effects)
+	- Slide in/out animations for menus
+	- Fade animations for overlays
+	- Loading spinner rotation
+	- Auto-scaling based on viewport size
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local Charm = require(ReplicatedStorage.Packages.Charm)
+
+-- Animation TweenInfo presets
+local SPRING_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local SPRING_FAST_INFO = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local SLIDE_IN_INFO = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local SLIDE_OUT_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+local FADE_INFO = TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+local FADE_FAST_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+
+-- Constants
+local STUDIO_SIZE = Vector2.new(1500, 803)
+local DEFAULT_HOVER_SCALE = 1.1
+local DEFAULT_CLICK_SCALE = 0.9
+local DEFAULT_SCALE = 1
+
+local AnimationController = {}
+
+-- Tracking tables
+local buttonAnimations: { [GuiButton]: { uiScale: UIScale, isHovering: boolean, isHolding: boolean } } = {}
+local menuAnimations: { [string]: { element: Frame, shownPos: UDim2, hiddenPos: UDim2, isShown: boolean } } = {}
+local autoScaledElements: { { element: Frame, scaleFactor: number, minScale: number } } = {}
+local connections: { RBXScriptConnection } = {}
+
+--[[
+	Button Animation System
+	Provides hover/click scaling effects similar to BasicButton/HudButton React components
+]]
+
+function AnimationController.setupButtonAnimation(button: GuiButton, options: {
+	hoverScale: number?,
+	clickScale: number?,
+	iconElement: ImageLabel?,
+	iconHoverPosition: UDim2?,
+	iconDefaultPosition: UDim2?,
+}?)
+	local opts = options or {}
+	local hoverScale = opts.hoverScale or DEFAULT_HOVER_SCALE
+	local clickScale = opts.clickScale or DEFAULT_CLICK_SCALE
+
+	-- Create UIScale if it doesn't exist
+	local uiScale = button:FindFirstChild("UIScale") :: UIScale
+	if not uiScale then
+		uiScale = Instance.new("UIScale")
+		uiScale.Name = "UIScale"
+		uiScale.Parent = button
+	end
+
+	local state = {
+		uiScale = uiScale,
+		isHovering = false,
+		isHolding = false,
+	}
+	buttonAnimations[button] = state
+
+	local function updateScale()
+		local targetScale = DEFAULT_SCALE
+		if state.isHolding then
+			targetScale = clickScale
+		elseif state.isHovering then
+			targetScale = hoverScale
+		end
+
+		local tween = TweenService:Create(uiScale, SPRING_INFO, {
+			Scale = targetScale
+		})
+		tween:Play()
+	end
+
+	local function updateIconPosition()
+		if not opts.iconElement then return end
+		
+		local targetPos = state.isHovering and opts.iconHoverPosition or opts.iconDefaultPosition
+		if targetPos then
+			local tween = TweenService:Create(opts.iconElement, SPRING_INFO, {
+				Position = targetPos
+			})
+			tween:Play()
+		end
+	end
+
+	table.insert(connections, button.MouseEnter:Connect(function()
+		state.isHovering = true
+		updateScale()
+		updateIconPosition()
+	end))
+
+	table.insert(connections, button.MouseLeave:Connect(function()
+		state.isHovering = false
+		state.isHolding = false
+		updateScale()
+		updateIconPosition()
+	end))
+
+	table.insert(connections, button.MouseButton1Down:Connect(function()
+		state.isHolding = true
+		updateScale()
+	end))
+
+	table.insert(connections, button.MouseButton1Up:Connect(function()
+		state.isHolding = false
+		updateScale()
+	end))
+end
+
+--[[
+	Menu Slide Animation System
+	Provides slide in/out animations for menu panels (similar to SlideOutFrame)
+]]
+
+function AnimationController.registerMenu(menuId: string, element: Frame, shownPos: UDim2, hiddenPos: UDim2)
+	-- Start hidden
+	element.Position = hiddenPos
+	element.Visible = false
+
+	menuAnimations[menuId] = {
+		element = element,
+		shownPos = shownPos,
+		hiddenPos = hiddenPos,
+		isShown = false,
+	}
+end
+
+function AnimationController.showMenu(menuId: string)
+	local data = menuAnimations[menuId]
+	if not data or data.isShown then return end
+
+	data.isShown = true
+	data.element.Visible = true
+
+	local tween = TweenService:Create(data.element, SLIDE_IN_INFO, {
+		Position = data.shownPos
+	})
+	tween:Play()
+end
+
+function AnimationController.hideMenu(menuId: string)
+	local data = menuAnimations[menuId]
+	if not data or not data.isShown then return end
+
+	data.isShown = false
+
+	local tween = TweenService:Create(data.element, SLIDE_OUT_INFO, {
+		Position = data.hiddenPos
+	})
+	tween:Play()
+	
+	local currentHiddenState = data.isShown -- Capture the state
+	tween.Completed:Connect(function()
+		if not data.isShown then
+			data.element.Visible = false
+		end
+	end)
+end
+
+function AnimationController.toggleMenu(menuId: string)
+	local data = menuAnimations[menuId]
+	if not data then return end
+
+	if data.isShown then
+		AnimationController.hideMenu(menuId)
+	else
+		AnimationController.showMenu(menuId)
+	end
+end
+
+--[[
+	Fade Animation System
+	Used for overlays like PurchaseScreen
+]]
+
+local fadeElements: { [CanvasGroup]: { rotatingElement: ImageLabel?, rotationConn: RBXScriptConnection?, isShown: boolean } } = {}
+
+function AnimationController.setupFadeElement(element: CanvasGroup, rotatingElement: ImageLabel?)
+	element.GroupTransparency = 1
+	element.Visible = false
+
+	fadeElements[element] = {
+		rotatingElement = rotatingElement,
+		rotationConn = nil,
+		isShown = false,
+	}
+end
+
+function AnimationController.showFadeElement(element: CanvasGroup)
+	local data = fadeElements[element]
+	if not data or data.isShown then return end
+
+	data.isShown = true
+	element.Visible = true
+
+	local tween = TweenService:Create(element, FADE_INFO, {
+		GroupTransparency = 0
+	})
+	tween:Play()
+
+	-- Start rotation if there's a rotating element
+	if data.rotatingElement then
+		local rotation = 0
+		data.rotationConn = RunService.PreRender:Connect(function(dt: number)
+			rotation = rotation + (60 * dt)
+			if data.rotatingElement then
+				data.rotatingElement.Rotation = rotation
+			end
+		end)
+		table.insert(connections, data.rotationConn)
+	end
+end
+
+function AnimationController.hideFadeElement(element: CanvasGroup)
+	local data = fadeElements[element]
+	if not data or not data.isShown then return end
+
+	data.isShown = false
+
+	-- Stop rotation
+	if data.rotationConn then
+		data.rotationConn:Disconnect()
+		data.rotationConn = nil
+	end
+
+	local tween = TweenService:Create(element, FADE_INFO, {
+		GroupTransparency = 1
+	})
+	tween:Play()
+	
+	tween.Completed:Connect(function()
+		if not data.isShown then
+			element.Visible = false
+		end
+	end)
+end
+
+--[[
+	Auto-Scaling System
+	Scales UI elements based on viewport size (similar to AutoScaledFrame)
+]]
+
+function AnimationController.setupAutoScaling(element: Frame, scaleFactor: number?, minScale: number?)
+	local uiScale = element:FindFirstChild("UIScale") :: UIScale
+	if not uiScale then
+		uiScale = Instance.new("UIScale")
+		uiScale.Name = "UIScale"
+		uiScale.Parent = element
+	end
+
+	table.insert(autoScaledElements, {
+		element = element,
+		scaleFactor = scaleFactor or 1,
+		minScale = minScale or 0,
+	})
+end
+
+local function updateAllAutoScaling()
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+
+	local viewportSize = camera.ViewportSize
+
+	for _, data in autoScaledElements do
+		local uiScale = data.element:FindFirstChild("UIScale") :: UIScale
+		if uiScale then
+			local newScale = data.scaleFactor * math.min(viewportSize.X / STUDIO_SIZE.X, viewportSize.Y / STUDIO_SIZE.Y)
+			uiScale.Scale = math.max(newScale, data.minScale)
+		end
+	end
+end
+
+--[[
+	Initialization
+]]
+
+function AnimationController.init(gameGui: ScreenGui)
+	-- Setup viewport scaling listener
+	local camera = workspace.CurrentCamera
+	if camera then
+		table.insert(connections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateAllAutoScaling))
+		updateAllAutoScaling()
+	end
+
+	-- Import Menu state for integration
+	local menuStateOk, Menu = pcall(function()
+		return require(ReplicatedStorage.UI.core.components.Menu)
+	end)
+	
+	if menuStateOk and Menu and Menu.state then
+		-- Subscribe to menu state changes
+		Charm.subscribe(Menu.state, function(openedMenu: string?)
+			-- Hide all menus first
+			for menuId, _ in menuAnimations do
+				if menuId ~= openedMenu then
+					AnimationController.hideMenu(menuId)
+				end
+			end
+
+			-- Show the selected menu
+			if openedMenu then
+				AnimationController.showMenu(openedMenu)
+			end
+		end)
+	end
+
+	-- Import purchase state for integration
+	local purchaseStateOk, purchaseSlice = pcall(function()
+		return require(ReplicatedStorage.UI.features.shop.state.purchaseSlice)
+	end)
+	
+	if purchaseStateOk and purchaseSlice and purchaseSlice.states then
+		-- Find purchase screen
+		local purchaseScreen = gameGui:FindFirstChild("PurchaseScreen") :: CanvasGroup
+		if purchaseScreen then
+			Charm.subscribe(purchaseSlice.states.purchasing, function(isPurchasing: boolean)
+				if isPurchasing then
+					AnimationController.showFadeElement(purchaseScreen)
+				else
+					AnimationController.hideFadeElement(purchaseScreen)
+				end
+			end)
+		end
+	end
+end
+
+--[[
+	Cleanup
+]]
+
+function AnimationController.cleanup()
+	for _, conn in connections do
+		if conn.Connected then
+			conn:Disconnect()
+		end
+	end
+	connections = {}
+	buttonAnimations = {}
+	menuAnimations = {}
+	autoScaledElements = {}
+	fadeElements = {}
+end
+
+return AnimationController

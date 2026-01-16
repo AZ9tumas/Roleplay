@@ -8,4 +8,6 @@ local UI = require(ReplicatedStorage.UI)
 DataService.client:init()
 MorphServiceClient:init()
 MonetizationServiceClient:init()
+
+-- Initialize UI (now uses native UI with TweenService animations instead of React)
 UI()
