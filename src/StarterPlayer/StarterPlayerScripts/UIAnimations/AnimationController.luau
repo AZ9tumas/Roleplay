@@ -401,14 +401,6 @@ function AnimationController.initExistingUI(gameGui: ScreenGui)
 			AnimationController.showMenu(currentMenu)
 		end
 	end)
-
-	-- Try to subscribe to purchase state if available
-	local purchaseStateOk, purchaseSlice = pcall(function()
-		return require(ReplicatedStorage.Packages.Charm) -- Just checking if Charm is available
-	end)
-	
-	-- Note: Purchase state subscription would need to be connected externally
-	-- since we're removing the UI module dependency
 end
 
 --[[
