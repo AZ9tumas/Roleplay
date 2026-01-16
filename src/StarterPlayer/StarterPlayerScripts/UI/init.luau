@@ -1,9 +1,8 @@
---!strict
--- UI Module entry point
--- This module can be required to initialize all UI controllers
+-- UI Entry Point
+-- Simple initialization for the UI system
 
-local UIController = require(script.UIController)
+local UIManager = require(script.UIManager)
 
 return function()
-	UIController.init()
+	UIManager.init()
 end

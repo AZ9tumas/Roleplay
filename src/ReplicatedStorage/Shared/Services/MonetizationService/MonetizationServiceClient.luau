@@ -1,11 +1,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Networker = require(ReplicatedStorage.Packages.Networker)
-local UIState = require(ReplicatedStorage.Shared.Modules.UI.UIState)
 
 local MonetizationServiceClient = {}
 
-function MonetizationServiceClient.promptClosed(self: MonetizationServiceClient)
-	UIState.setPurchasing(false)
+function MonetizationServiceClient.promptClosed(_self: MonetizationServiceClient)
+	-- Purchase prompt closed - UI updates happen via DataService signals
 end
 
 function MonetizationServiceClient.init(self: MonetizationServiceClient): ()
