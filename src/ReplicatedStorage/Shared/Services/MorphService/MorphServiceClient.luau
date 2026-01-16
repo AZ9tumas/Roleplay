@@ -5,8 +5,7 @@ local DataService = require(ReplicatedStorage.Packages.DataService).client
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
-local morphSlice = require(ReplicatedStorage.UI.features.morph.state.morphSlice)
-local purchaseSlice = require(ReplicatedStorage.UI.features.shop.state.purchaseSlice)
+local UIState = require(ReplicatedStorage.Shared.Modules.UI.UIState)
 local MORPH_TAG = "Morph"
 
 local MorphServiceClient = {}
@@ -72,7 +71,7 @@ function MorphServiceClient.unequipMorph(self: MorphServiceClient): ()
 end
 
 function MorphServiceClient.purchaseMorph(self: MorphServiceClient, morph: string): ()
-	purchaseSlice.actions.setPurchase(true)
+	UIState.setPurchasing(true)
 	self.networker:fire("purchaseMorph", morph)
 end
 
@@ -88,7 +87,7 @@ end
 function MorphServiceClient._initData(self: MorphServiceClient, data): ()
 	self.morphData = data
 
-	morphSlice.actions.setSoldMorph(self.morphData)
+	UIState.setSoldMorphs(self.morphData)
 end
 
 function MorphServiceClient._setData(self: MorphServiceClient, key, value): ()
@@ -97,7 +96,7 @@ function MorphServiceClient._setData(self: MorphServiceClient, key, value): ()
 	end
 
 	self.morphData[key] = value
-	morphSlice.actions.setSoldMorph(self.morphData)
+	UIState.setSoldMorphs(self.morphData)
 end
 
 function MorphServiceClient.init(self: MorphServiceClient)
@@ -110,12 +109,12 @@ function MorphServiceClient.init(self: MorphServiceClient)
 	end)
 
 	DataService:getIndexChangedSignal({ "unlockedMorph" }):Connect(function(index, _newValue)
-		morphSlice.actions.addUnlockedMorph(DataService:get({ "unlockedMorph" }))
-		morphSlice.actions.setNewMorph(index)
+		UIState.setUnlockedMorphs(DataService:get({ "unlockedMorph" }))
+		UIState.addNewMorph(index)
 	end)
 
 	DataService:getChangedSignal({ "equippedMorph" }):Connect(function(value: string)
-		morphSlice.actions.setEquippedMorph(value)
+		UIState.setEquippedMorph(value)
 	end)
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, gp: boolean)
@@ -127,7 +126,7 @@ function MorphServiceClient.init(self: MorphServiceClient)
 			input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch
 		then
-			morphSlice.actions.setNewMorph()
+			UIState.removeFirstNewMorph()
 		end
 	end)
 end
