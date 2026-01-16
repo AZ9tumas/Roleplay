@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataService = require(ReplicatedStorage.Packages.DataService).client
 local CoinMorphs = require(ReplicatedStorage.Shared.Modules.Game.CoinMorphs)
+local ImageIds = require(ReplicatedStorage.Shared.Modules.Game.ImageIds)
 local MorphServiceClient = require(ReplicatedStorage.Shared.Services.MorphService.MorphServiceClient)
 local ButtonAnimations = require(script.Parent.ButtonAnimations)
 local MenuController = require(script.Parent.MenuController)
@@ -15,6 +16,8 @@ CoinShopController._menu = nil :: any
 CoinShopController._buttonAnimations = {} :: { [string]: any }
 CoinShopController._connections = {} :: { RBXScriptConnection }
 CoinShopController._coinsLabel = nil :: TextLabel?
+CoinShopController._morphContainers = {} :: { [string]: Frame }
+CoinShopController._unlockedMorphs = {} :: { [string]: any }
 
 function CoinShopController.init()
 	local player = Players.LocalPlayer
@@ -46,24 +49,54 @@ function CoinShopController.init()
 	-- Find coins display label
 	CoinShopController._findCoinsLabel(coinShop)
 	
+	-- Find morph containers
+	CoinShopController._findMorphContainers(coinShop)
+	
 	-- Setup purchase buttons
 	CoinShopController._setupPurchaseButtons(coinShop)
 	
 	-- Listen for coins changes
 	CoinShopController._setupDataListeners()
 	
-	-- Initial coins update
-	CoinShopController._updateCoinsDisplay()
+	-- Load initial data
+	CoinShopController._loadInitialData()
 end
 
 function CoinShopController._findCoinsLabel(container: Frame)
 	-- Look for a TextLabel that displays coins
 	for _, child in container:GetDescendants() do
-		if child:IsA("TextLabel") and (child.Name == "CoinsLabel" or string.find(child.Text, "Coins")) then
-			CoinShopController._coinsLabel = child
-			break
+		if child:IsA("TextLabel") then
+			if child.Name == "CoinsLabel" or string.find(child.Text, "Coins") then
+				CoinShopController._coinsLabel = child
+				break
+			end
 		end
 	end
+end
+
+function CoinShopController._findMorphContainers(container: Frame)
+	-- Find containers for each coin morph
+	for morphName, morphData in CoinMorphs do
+		for _, child in container:GetDescendants() do
+			if child:IsA("Frame") or child:IsA("ImageLabel") then
+				if child:GetAttribute("MorphId") == morphName or child.Name == morphName then
+					CoinShopController._morphContainers[morphName] = child
+					break
+				end
+			end
+		end
+	end
+end
+
+function CoinShopController._loadInitialData()
+	-- Load initial unlocked morphs
+	CoinShopController._unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
+	
+	-- Update coins display
+	CoinShopController._updateCoinsDisplay()
+	
+	-- Update all morph containers
+	CoinShopController._updateAllMorphContainers()
 end
 
 function CoinShopController._updateCoinsDisplay()
@@ -82,8 +115,9 @@ function CoinShopController._setupDataListeners()
 	table.insert(CoinShopController._connections, coinsConnection)
 	
 	-- Listen for morph unlock changes to update button states
-	local morphConnection = DataService:getIndexChangedSignal({ "unlockedMorph" }):Connect(function()
-		CoinShopController._updateButtonStates()
+	local morphConnection = DataService:getIndexChangedSignal({ "unlockedMorph" }):Connect(function(index)
+		CoinShopController._unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
+		CoinShopController._updateMorphContainer(index)
 	end)
 	table.insert(CoinShopController._connections, morphConnection)
 end
@@ -91,36 +125,76 @@ end
 function CoinShopController._setupPurchaseButtons(container: Frame)
 	-- Find purchase buttons for each coin morph
 	for morphName, morphData in CoinMorphs do
-		-- Look for a button associated with this morph
-		local button = container:FindFirstChild(morphName .. "Button") :: GuiButton?
-		if not button then
-			-- Try finding by looking at descendants
-			for _, child in container:GetDescendants() do
-				if child:IsA("GuiButton") and string.find(child.Name, morphName) then
-					button = child
-					break
+		-- Look for any button that might be associated with this morph
+		for _, child in container:GetDescendants() do
+			if child:IsA("GuiButton") then
+				local parent = child.Parent
+				local matchesMorph = false
+				
+				-- Check if button or parent is associated with this morph
+				if string.find(child.Name, morphName) then
+					matchesMorph = true
+				elseif parent and (parent.Name == morphName or parent:GetAttribute("MorphId") == morphName) then
+					matchesMorph = true
+				end
+				
+				if matchesMorph then
+					local animation = ButtonAnimations.setupButton(child, function()
+						CoinShopController._onPurchaseButtonClicked(morphName)
+					end)
+					CoinShopController._buttonAnimations[morphName] = animation
 				end
 			end
-		end
-		
-		if button then
-			local animation = ButtonAnimations.setupButton(button, function()
-				MorphServiceClient:purchaseCoinMorph(morphName)
-			end)
-			CoinShopController._buttonAnimations[morphName] = animation
 		end
 	end
 end
 
-function CoinShopController._updateButtonStates()
-	local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
+function CoinShopController._onPurchaseButtonClicked(morphName: string)
+	-- Check if already unlocked
+	if CoinShopController._unlockedMorphs[morphName] then
+		return
+	end
 	
+	-- Request purchase from MorphService
+	MorphServiceClient:purchaseCoinMorph(morphName)
+end
+
+function CoinShopController._updateAllMorphContainers()
 	for morphName, _ in CoinMorphs do
-		local button = CoinShopController._buttonAnimations[morphName]
-		if button then
+		CoinShopController._updateMorphContainer(morphName)
+	end
+end
+
+function CoinShopController._updateMorphContainer(morphName: string)
+	local container = CoinShopController._morphContainers[morphName]
+	if not container then
+		return
+	end
+	
+	local isUnlocked = CoinShopController._unlockedMorphs[morphName] ~= nil
+	
+	-- Update buy button state
+	for _, child in container:GetDescendants() do
+		if child:IsA("GuiButton") then
 			-- Update button appearance based on unlock state
-			local isUnlocked = unlockedMorphs[morphName] ~= nil
-			-- Visual update would be done here if needed
+			if isUnlocked then
+				-- Show as purchased
+				if child:IsA("ImageButton") then
+					child.Image = ImageIds.greenButton
+				end
+				
+				-- Update text to show "Owned"
+				for _, textChild in child:GetDescendants() do
+					if textChild:IsA("TextLabel") then
+						if string.find(textChild.Text:lower(), "buy") or string.find(textChild.Text:lower(), "coins") then
+							textChild.Text = "Owned"
+						end
+					end
+				end
+				
+				-- Disable button interaction
+				child.Active = false
+			end
 		end
 	end
 end

@@ -8,6 +8,7 @@ local CoinShopController = require(script.Parent.CoinShopController)
 local ShopController = require(script.Parent.ShopController)
 local MorphScreenController = require(script.Parent.MorphScreenController)
 local NewMorphController = require(script.Parent.NewMorphController)
+local PurchaseScreenController = require(script.Parent.PurchaseScreenController)
 
 local UIController = {}
 
@@ -23,6 +24,7 @@ function UIController.init()
 	ShopController.init()
 	MorphScreenController.init()
 	NewMorphController.init()
+	PurchaseScreenController.init()
 	
 	print("UIController: All UI modules initialized")
 end
@@ -33,6 +35,7 @@ function UIController.cleanup()
 	ShopController.cleanup()
 	MorphScreenController.cleanup()
 	NewMorphController.cleanup()
+	PurchaseScreenController.cleanup()
 end
 
 return UIController
