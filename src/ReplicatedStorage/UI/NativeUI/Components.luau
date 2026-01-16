@@ -38,6 +38,76 @@ local function createTextLabel(props: {
 	DropShadowColor: Color3?,
 	Parent: Instance?,
 }): TextLabel
+	-- If drop shadow is specified, create a container with shadow effect
+	if props.DropShadow then
+		-- Create shadow (background) label
+		local shadowLabel = Instance.new("TextLabel")
+		shadowLabel.Name = props.Name or "TextLabel"
+		shadowLabel.Text = props.Text or ""
+		shadowLabel.TextColor3 = props.DropShadowColor or Color3.fromRGB(0, 0, 0)
+		shadowLabel.Size = props.Size or UDim2.fromScale(1, 1)
+		shadowLabel.Position = props.Position or UDim2.fromScale(0.5, 0.5)
+		shadowLabel.AnchorPoint = props.AnchorPoint or Vector2.new(0.5, 0.5)
+		shadowLabel.BackgroundTransparency = 1
+		shadowLabel.TextXAlignment = props.TextXAlignment or Enum.TextXAlignment.Center
+		shadowLabel.Font = props.Font or Enum.Font.FredokaOne
+		shadowLabel.RichText = props.RichText or false
+		shadowLabel.ZIndex = 1
+
+		-- Handle text scaling for shadow
+		if props.TextSize then
+			shadowLabel.TextScaled = false
+			shadowLabel.TextSize = props.TextSize
+		elseif props.TextScaled == false then
+			shadowLabel.TextScaled = false
+			shadowLabel.TextSize = 14
+		else
+			shadowLabel.TextScaled = true
+		end
+
+		-- Create the main text label (on top of shadow)
+		local mainLabel = Instance.new("TextLabel")
+		mainLabel.Name = "MainText"
+		mainLabel.Text = props.Text or ""
+		mainLabel.TextColor3 = props.TextColor3 or Color3.fromRGB(255, 255, 255)
+		mainLabel.Size = UDim2.fromScale(1, 1)
+		mainLabel.Position = UDim2.fromScale(0.5, 0.5 - (props.DropShadow / 10))
+		mainLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+		mainLabel.BackgroundTransparency = 1
+		mainLabel.TextXAlignment = props.TextXAlignment or Enum.TextXAlignment.Center
+		mainLabel.Font = props.Font or Enum.Font.FredokaOne
+		mainLabel.RichText = props.RichText or false
+
+		-- Handle text scaling for main label
+		if props.TextSize then
+			mainLabel.TextScaled = false
+			mainLabel.TextSize = props.TextSize
+		elseif props.TextScaled == false then
+			mainLabel.TextScaled = false
+			mainLabel.TextSize = 14
+		else
+			mainLabel.TextScaled = true
+		end
+
+		-- Add stroke to the main label if specified
+		if props.Stroke then
+			local stroke = Instance.new("UIStroke")
+			stroke.Name = "UIStroke"
+			stroke.Thickness = props.Stroke
+			stroke.Color = props.StrokeColor or Color3.fromRGB(0, 0, 0)
+			stroke.Parent = mainLabel
+		end
+
+		mainLabel.Parent = shadowLabel
+
+		if props.Parent then
+			shadowLabel.Parent = props.Parent
+		end
+
+		return shadowLabel
+	end
+
+	-- Standard label without drop shadow
 	local label = Instance.new("TextLabel")
 	label.Name = props.Name or "TextLabel"
 	label.Text = props.Text or ""
@@ -50,16 +120,15 @@ local function createTextLabel(props: {
 	label.Font = props.Font or Enum.Font.FredokaOne
 	label.RichText = props.RichText or false
 	
-	if props.TextScaled == nil or props.TextScaled then
-		label.TextScaled = true
-	else
-		label.TextScaled = false
-		label.TextSize = props.TextSize or 14
-	end
-
+	-- Handle text scaling - if TextSize is explicitly provided, use fixed size
 	if props.TextSize then
 		label.TextScaled = false
 		label.TextSize = props.TextSize
+	elseif props.TextScaled == false then
+		label.TextScaled = false
+		label.TextSize = 14
+	else
+		label.TextScaled = true
 	end
 
 	-- Add stroke if specified

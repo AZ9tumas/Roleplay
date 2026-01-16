@@ -161,7 +161,6 @@ function AnimationController.hideMenu(menuId: string)
 	})
 	tween:Play()
 	
-	local currentHiddenState = data.isShown -- Capture the state
 	tween.Completed:Connect(function()
 		if not data.isShown then
 			data.element.Visible = false
@@ -219,7 +218,8 @@ function AnimationController.showFadeElement(element: CanvasGroup)
 				data.rotatingElement.Rotation = rotation
 			end
 		end)
-		table.insert(connections, data.rotationConn)
+		-- Note: rotation connection is tracked in data.rotationConn for individual cleanup
+		-- and will be cleaned up in hideFadeElement or the main cleanup function
 	end
 end
 
@@ -341,11 +341,20 @@ end
 ]]
 
 function AnimationController.cleanup()
+	-- Clean up main connections
 	for _, conn in connections do
 		if conn.Connected then
 			conn:Disconnect()
 		end
 	end
+	
+	-- Clean up fade element rotation connections
+	for _, data in fadeElements do
+		if data.rotationConn and data.rotationConn.Connected then
+			data.rotationConn:Disconnect()
+		end
+	end
+	
 	connections = {}
 	buttonAnimations = {}
 	menuAnimations = {}
