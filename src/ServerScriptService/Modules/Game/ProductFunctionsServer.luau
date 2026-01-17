@@ -6,20 +6,32 @@ local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 return {
 	[Products.getProductId("MorphPack1")] = function()
 		print("One time only")
+		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end,
 
 	[Products.getProductId("UnlockMorph")] = function(player: Player)
 		local morph = MorphServiceServer.morphPurchaseCache[player]
 		if morph then
 			MorphServiceServer:addToData(player, morph)
+			MorphServiceServer.morphPurchaseCache[player] = nil
+			return Enum.ProductPurchaseDecision.PurchaseGranted
 		end
+		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end,
 
 	[Products.getProductId("LimitedMorphTest")] = function(player: Player, receiptInfo: any)
-		return MorphServiceServer:buyLimitedAmountMorph("LimitedMorphTest", receiptInfo, player)
+		local result = MorphServiceServer:buyLimitedAmountMorph("LimitedMorphTest", receiptInfo, player)
+		if result == Enum.ProductPurchaseDecision.PurchaseGranted then
+			MorphServiceServer:addToData(player, "LimitedMorphTest")
+		end
+		return result
 	end,
 
 	[Products.getProductId("LimitedTimeMorphTest")] = function(player: Player, receiptInfo: any)
-		return MorphServiceServer:buyLimitedTimeMorph("LimitedTimeMorphTest", receiptInfo, player)
+		local result = MorphServiceServer:buyLimitedTimeMorph("LimitedTimeMorphTest", receiptInfo, player)
+		if result == Enum.ProductPurchaseDecision.PurchaseGranted then
+			MorphServiceServer:addToData(player, "LimitedTimeMorphTest")
+		end
+		return result
 	end,
-} :: { [number]: (Player, any) -> () }
+} :: { [number]: (Player, any) -> Enum.ProductPurchaseDecision }

@@ -196,7 +196,7 @@ function MonetizationServiceServer.init(self: MonetizationServiceServer)
 	)
 
 	MarketplaceService.ProcessReceipt = function(receiptInfo)
-		self:_processReceipt(receiptInfo)
+		return self:_processReceipt(receiptInfo)
 	end
 
 	Players.PlayerAdded:Connect(function(player: Player)
