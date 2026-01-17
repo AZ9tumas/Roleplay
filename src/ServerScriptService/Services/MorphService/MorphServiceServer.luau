@@ -224,7 +224,15 @@ function MorphServiceServer.purchaseMorph(self: MorphServiceServer, player: Play
 
 	self.morphPurchaseCache[player] = morph
 
-	MarketplaceService:PromptProductPurchase(player, Products.getProductId("UnlockMorph"))
+	-- Check if this morph has its own product (like LimitedMorphTest)
+	local morphProduct = Products.ids[morph]
+	if morphProduct then
+		-- Use morph-specific product
+		MarketplaceService:PromptProductPurchase(player, morphProduct.productId)
+	else
+		-- Use generic UnlockMorph product
+		MarketplaceService:PromptProductPurchase(player, Products.getProductId("UnlockMorph"))
+	end
 end
 
 function MorphServiceServer.purchaseCoinMorph(self: MorphServiceServer, player: Player, morphName: string): boolean
