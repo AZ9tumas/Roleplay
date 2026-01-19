@@ -349,6 +349,10 @@ local function getProductNameFromItem(item: Instance): string?
 	if Morphs[item.Name] then
 		return item.Name
 	end
+
+	if productNames[item.Name] then
+		return productNames[item.Name]
+	end
 	
 	-- Fallback: check ProductName TextLabel if item name doesn't match
 	local productNameLabel = item:FindFirstChild("ProductName") :: TextLabel?
@@ -377,7 +381,7 @@ local function setupShopScreen()
 	local shopList = shopScreen:FindFirstChild("ShopList", true)
 	if not shopList then 
 		print("UIManager: ShopList not found in Shop screen")
-		return 
+		return
 	end
 	
 	print("UIManager: Setting up Shop screen, found ShopList")
@@ -387,8 +391,7 @@ local function setupShopScreen()
 		if section.Name == "Morphs" or section.Name == "LimitedMorphs" then
 			local content = section:FindFirstChild("Content")
 			if content then
-				local grid = content:FindFirstChild("Grid")
-				local itemContainer = grid or content
+				local itemContainer = content
 				
 				print("UIManager: Processing section", section.Name, "with", #itemContainer:GetChildren(), "items")
 				
