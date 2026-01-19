@@ -294,7 +294,7 @@ local function setupCoinShopScreen()
 	coinShopScreen.Position = UDim2.fromScale(0.5, 1.5)
 	
 	-- Find CoinsLabel and update it
-	local coinsDisplay = coinShopScreen:FindFirstChild("CoinsDisplay", true)
+	local coinsDisplay = coinShopScreen.Content:FindFirstChild("CoinsDisplay")
 	if coinsDisplay then
 		local coinsLabel = coinsDisplay:FindFirstChild("CoinsLabel") :: TextLabel?
 		if coinsLabel then
@@ -303,7 +303,7 @@ local function setupCoinShopScreen()
 	end
 	
 	-- Find ShopList and Morphs container
-	local shopList = coinShopScreen:FindFirstChild("ShopList", true)
+	local shopList = coinShopScreen.Content:FindFirstChild("ShopList")
 	print("UIManager: CoinShop ShopList found:", shopList ~= nil)
 	if shopList then
 		local morphsSection = shopList:FindFirstChild("Morphs", true)
@@ -313,8 +313,7 @@ local function setupCoinShopScreen()
 			print("UIManager: CoinShop Content found:", content ~= nil)
 			if content then
 				-- Check if there's a Grid inside Content
-				local grid = content:FindFirstChild("Grid")
-				local itemContainer = grid or content
+				local itemContainer = content
 				print("UIManager: CoinShop using container:", itemContainer.Name, "with", #itemContainer:GetChildren(), "children")
 				
 				for _, child in itemContainer:GetChildren() do
@@ -324,8 +323,8 @@ local function setupCoinShopScreen()
 						-- Also check ProductName label for actual morph name
 						local productNameLabel = child:FindFirstChild("ProductName") :: TextLabel?
 						if productNameLabel and productNameLabel:IsA("TextLabel") then
-							if CoinMorphs[productNameLabel.Text] then
-								morphName = productNameLabel.Text
+							if CoinMorphs[child.Name] then
+								morphName = child.Name
 							end
 						end
 						
@@ -552,8 +551,7 @@ local function updateAllMorphs()
 				if section.Name == "Morphs" or section.Name == "LimitedMorphs" then
 					local content = section:FindFirstChild("Content")
 					if content then
-						local grid = content:FindFirstChild("Grid")
-						local itemContainer = grid or content
+						local itemContainer = content
 						
 						for _, child in itemContainer:GetChildren() do
 							if child:IsA("Frame") or child:IsA("ImageLabel") then
