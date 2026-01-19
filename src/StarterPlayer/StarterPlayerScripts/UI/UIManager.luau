@@ -21,6 +21,15 @@ local BUTTON_SCALE_NORMAL = 1
 local BUTTON_SCALE_HOVER = 1.1
 local BUTTON_SCALE_PRESSED = 0.9
 
+-- Info
+-- {itemName: string -> productName: string}
+local productNames = {
+	["1"] = "MorphPack1",
+	["LimitedMorphTest"] = "LimitedMorphTest",
+	["LimitedTimeMorphTest"] = "LimitedTimeMorphTest",
+	["UnlockMorph"] = "UnlockMorph",
+}
+
 -- State
 local currentOpenMenu: string? = nil
 local connections: { RBXScriptConnection } = {}
