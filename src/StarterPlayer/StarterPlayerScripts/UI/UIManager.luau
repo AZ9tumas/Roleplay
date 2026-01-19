@@ -280,20 +280,36 @@ local function setupCoinShopScreen()
 		if morphsSection then
 			local content = morphsSection:FindFirstChild("Content")
 			if content then
-				for _, child in content:GetChildren() do
+				-- Check if there's a Grid inside Content
+				local grid = content:FindFirstChild("Grid")
+				local itemContainer = grid or content
+				
+				for _, child in itemContainer:GetChildren() do
 					if child:IsA("Frame") or child:IsA("ImageLabel") then
 						local morphName = child.Name
+						-- Also check ProductName label for actual morph name
+						local productNameLabel = child:FindFirstChild("ProductName") :: TextLabel?
+						if productNameLabel and productNameLabel:IsA("TextLabel") then
+							if CoinMorphs[productNameLabel.Text] then
+								morphName = productNameLabel.Text
+							end
+						end
+						
 						if CoinMorphs[morphName] then
-							-- Setup BuyButton click
+							-- Setup BuyButton click and animation
 							local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
 							if buyButton then
+								print("UIManager: Setting up CoinShop BuyButton animation for", morphName)
 								setupButtonAnimation(buyButton)
+								
+								local capturedMorphName = morphName
 								table.insert(connections, buyButton.MouseButton1Click:Connect(function()
 									local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
-									local isUnlocked = unlockedMorphs[morphName] ~= nil
+									local isUnlocked = unlockedMorphs[capturedMorphName] ~= nil
 									
 									if not isUnlocked then
-										MorphServiceClient:purchaseCoinMorph(morphName)
+										print("UIManager: Purchasing coin morph", capturedMorphName)
+										MorphServiceClient:purchaseCoinMorph(capturedMorphName)
 									end
 								end))
 							end
@@ -384,9 +400,10 @@ local function setupShopScreen()
 						local productName = getProductNameFromItem(child)
 						print("UIManager: Item", child.Name, "resolved to product:", productName or "nil")
 						
-						-- Setup BuyButton click
+						-- Setup BuyButton click and animation
 						local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
 						if buyButton then
+							print("UIManager: Setting up Shop BuyButton animation for", child.Name)
 							setupButtonAnimation(buyButton)
 							
 							-- Store productName in closure
