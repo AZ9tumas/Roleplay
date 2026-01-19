@@ -339,23 +339,10 @@ local function setupNewMorphPopup()
 	newMorphPopup.Position = UDim2.fromScale(0.5, 1.5)
 end
 
--- Helper: Get product name from a shop item (either from ProductName TextLabel or item.Name)
+-- Helper: Get product name from a shop item (item.Name is directly linked to product name)
 local function getProductNameFromItem(item: Instance): string?
-	-- First priority: check ProductName TextLabel - this is how React UI stored the product key
-	local productNameLabel = item:FindFirstChild("ProductName") :: TextLabel?
-	if productNameLabel and productNameLabel:IsA("TextLabel") then
-		local labelText = productNameLabel.Text
-		-- Check if the label text directly matches a product key
-		if Products.ids[labelText] then
-			return labelText
-		end
-		-- Check if it matches a morph name
-		if Morphs[labelText] then
-			return labelText
-		end
-	end
-	
-	-- Second priority: check if item name directly matches a product or morph
+	-- Primary: check if item name directly matches a product or morph
+	-- (UI items are named after the product/morph they represent)
 	if Products.ids[item.Name] then
 		return item.Name
 	end
@@ -363,13 +350,15 @@ local function getProductNameFromItem(item: Instance): string?
 		return item.Name
 	end
 	
-	-- Third priority: try to find morph by display name
+	-- Fallback: check ProductName TextLabel if item name doesn't match
+	local productNameLabel = item:FindFirstChild("ProductName") :: TextLabel?
 	if productNameLabel and productNameLabel:IsA("TextLabel") then
-		local displayText = productNameLabel.Text
-		for morphName, morphData in Morphs do
-			if morphData.displayName == displayText then
-				return morphName
-			end
+		local labelText = productNameLabel.Text
+		if Products.ids[labelText] then
+			return labelText
+		end
+		if Morphs[labelText] then
+			return labelText
 		end
 	end
 	
