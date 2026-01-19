@@ -4,11 +4,13 @@ local MonetizationServiceServer = require(ServerScriptService.Services.Monetizat
 local DataService = require(ReplicatedStorage.Packages.DataService)
 local DataTemplate = require(ReplicatedStorage.Shared.Modules.Main.DataTemplate)
 local MorphServiceServer = require(ServerScriptService.Services.MorphService.MorphServiceServer)
+local CoinServiceServer = require(ServerScriptService.Services.CoinService.CoinServiceServer)
 
 DataService.server:init({
 	template = DataTemplate,
 	profileStoreIndex = "Test#1",
-	useMock = true,
+	useMock = false,
 })
 MorphServiceServer:init(true)
 MonetizationServiceServer:init()
+CoinServiceServer:init()

@@ -3,4 +3,5 @@ return {
 	unlockedMorph = {},
 	gamepasses = {},
 	devProducts = {},
+	coins = 0,
 }

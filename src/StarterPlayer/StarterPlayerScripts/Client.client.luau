@@ -3,9 +3,11 @@ local DataService = require(ReplicatedStorage.Packages.DataService)
 local MonetizationServiceClient =
 	require(ReplicatedStorage.Shared.Services.MonetizationService.MonetizationServiceClient)
 local MorphServiceClient = require(ReplicatedStorage.Shared.Services.MorphService.MorphServiceClient)
-local UI = require(ReplicatedStorage.UI)
+local CoinServiceClient = require(ReplicatedStorage.Shared.Services.CoinService.CoinServiceClient)
+local UI = require(script.Parent.UI)
 
 DataService.client:init()
 MorphServiceClient:init()
 MonetizationServiceClient:init()
+CoinServiceClient:init()
 UI()

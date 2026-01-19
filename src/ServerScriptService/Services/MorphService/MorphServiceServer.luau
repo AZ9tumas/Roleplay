@@ -224,7 +224,62 @@ function MorphServiceServer.purchaseMorph(self: MorphServiceServer, player: Play
 
 	self.morphPurchaseCache[player] = morph
 
-	MarketplaceService:PromptProductPurchase(player, Products.getProductId("UnlockMorph"))
+	-- Check if this morph has its own product (like LimitedMorphTest)
+	local morphProduct = Products.ids[morph]
+	if morphProduct then
+		-- Use morph-specific product
+		MarketplaceService:PromptProductPurchase(player, morphProduct.productId)
+	else
+		-- Use generic UnlockMorph product
+		MarketplaceService:PromptProductPurchase(player, Products.getProductId("UnlockMorph"))
+	end
+end
+
+function MorphServiceServer.purchaseCoinMorph(self: MorphServiceServer, player: Player, morphName: string): boolean
+	local CoinMorphs = require(ReplicatedStorage.Shared.Modules.Game.CoinMorphs)
+	local morphData = CoinMorphs[morphName]
+	if not morphData then
+		return false
+	end
+
+	-- Validate morph exists in main Morphs table
+	if not Morphs[morphName] then
+		return false
+	end
+
+	local currentCoins = DataService:get(player, { "coins" }) or 0
+	if currentCoins < morphData.cost then
+		return false
+	end
+
+	-- Check if already unlocked
+	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+	if unlockedMorphs[morphName] then
+		return false
+	end
+
+	-- Deduct coins and save to datastore
+	local newCoins = currentCoins - morphData.cost
+	DataService:set(player, { "coins" }, newCoins)
+
+	-- Update leaderstats
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if leaderstats then
+		local coinsValue = leaderstats:FindFirstChild("Coins") :: IntValue?
+		if coinsValue then
+			coinsValue.Value = newCoins
+		end
+	end
+
+	-- Unlock morph (saved to datastore via DataService)
+	DataService:set(player, { "unlockedMorph", morphName }, {
+		obtainTime = os.time(),
+	})
+
+	-- Notify client
+	self.networker:fire(player, "onCoinMorphPurchased", morphName)
+
+	return true
 end
 
 function MorphServiceServer._setupUnlocker(self: MorphServiceServer, unlocker: BasePart): ()
@@ -282,6 +337,7 @@ function MorphServiceServer.init(self: MorphServiceServer, resetData: boolean?):
 		self.equipMorph,
 		self.unequipMorph,
 		self.purchaseMorph,
+		self.purchaseCoinMorph,
 	})
 
 	for _, unlocker in CollectionService:GetTagged(MORPH_UNLOCKER_TAG) do

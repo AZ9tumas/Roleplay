@@ -1,12 +1,8 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local DataService = require(ReplicatedStorage.Packages.DataService).client
 local Networker = require(ReplicatedStorage.Packages.Networker)
-local Signal = require(ReplicatedStorage.Packages.Signal)
 local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
-local morphSlice = require(ReplicatedStorage.UI.features.morph.state.morphSlice)
-local purchaseSlice = require(ReplicatedStorage.UI.features.shop.state.purchaseSlice)
 local MORPH_TAG = "Morph"
 
 local MorphServiceClient = {}
@@ -72,14 +68,20 @@ function MorphServiceClient.unequipMorph(self: MorphServiceClient): ()
 end
 
 function MorphServiceClient.purchaseMorph(self: MorphServiceClient, morph: string): ()
-	purchaseSlice.actions.setPurchase(true)
 	self.networker:fire("purchaseMorph", morph)
+end
+
+function MorphServiceClient.purchaseCoinMorph(self: MorphServiceClient, morphName: string): ()
+	self.networker:fire("purchaseCoinMorph", morphName)
+end
+
+function MorphServiceClient.onCoinMorphPurchased(_self: MorphServiceClient, morphName: string): ()
+	-- Morph was successfully purchased with coins - DataService will handle the update
+	print("Purchased coin morph: " .. morphName)
 end
 
 function MorphServiceClient._initData(self: MorphServiceClient, data): ()
 	self.morphData = data
-
-	morphSlice.actions.setSoldMorph(self.morphData)
 end
 
 function MorphServiceClient._setData(self: MorphServiceClient, key, value): ()
@@ -88,7 +90,6 @@ function MorphServiceClient._setData(self: MorphServiceClient, key, value): ()
 	end
 
 	self.morphData[key] = value
-	morphSlice.actions.setSoldMorph(self.morphData)
 end
 
 function MorphServiceClient.init(self: MorphServiceClient)
@@ -98,28 +99,6 @@ function MorphServiceClient.init(self: MorphServiceClient)
 		self:playAnimation(morph)
 	end, function(morph: Model)
 		self:cleanupAnimation(morph)
-	end)
-
-	DataService:getIndexChangedSignal({ "unlockedMorph" }):Connect(function(index, _newValue)
-		morphSlice.actions.addUnlockedMorph(DataService:get({ "unlockedMorph" }))
-		morphSlice.actions.setNewMorph(index)
-	end)
-
-	DataService:getChangedSignal({ "equippedMorph" }):Connect(function(value: string)
-		morphSlice.actions.setEquippedMorph(value)
-	end)
-
-	UserInputService.InputBegan:Connect(function(input: InputObject, gp: boolean)
-		if gp then
-			return
-		end
-
-		if
-			input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch
-		then
-			morphSlice.actions.setNewMorph()
-		end
 	end)
 end
 
