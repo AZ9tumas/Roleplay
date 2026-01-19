@@ -314,6 +314,46 @@ local function setupNewMorphPopup()
 	newMorphPopup.Position = UDim2.fromScale(0.5, 1.5)
 end
 
+-- Helper: Get product name from a shop item (either from ProductName TextLabel or item.Name)
+local function getProductNameFromItem(item: Instance): string?
+	-- First check if there's a ProductName TextLabel
+	local productNameLabel = item:FindFirstChild("ProductName") :: TextLabel?
+	if productNameLabel and productNameLabel:IsA("TextLabel") then
+		-- The ProductName label text might be the display name, but the actual key is often the item name
+		-- If item.Name is a number (like "1"), we need to find the product by checking Products.ids
+		local itemName = item.Name
+		if Products.ids[itemName] then
+			return itemName
+		end
+		-- Otherwise try to match by checking if any product exists in Morphs
+		if Morphs[itemName] then
+			return itemName
+		end
+	end
+	
+	-- If item name directly matches a product or morph, use it
+	if Products.ids[item.Name] then
+		return item.Name
+	end
+	if Morphs[item.Name] then
+		return item.Name
+	end
+	
+	-- Last resort: check ProductName label text against known products
+	local productNameLabel2 = item:FindFirstChild("ProductName") :: TextLabel?
+	if productNameLabel2 and productNameLabel2:IsA("TextLabel") then
+		local displayText = productNameLabel2.Text
+		-- Try to find a morph with matching displayName
+		for morphName, morphData in Morphs do
+			if morphData.displayName == displayText or morphName == displayText then
+				return morphName
+			end
+		end
+	end
+	
+	return nil
+end
+
 -- Setup Shop Screen (Robux purchases)
 local function setupShopScreen()
 	if not shopScreen then return end
@@ -336,8 +376,8 @@ local function setupShopScreen()
 				
 				for _, child in itemContainer:GetChildren() do
 					if child:IsA("Frame") or child:IsA("ImageLabel") then
-						local productName = child.Name
-						local productData = Products.ids[productName]
+						-- Get the actual product name
+						local productName = getProductNameFromItem(child)
 						
 						-- Setup BuyButton click
 						local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
@@ -345,18 +385,25 @@ local function setupShopScreen()
 							setupButtonAnimation(buyButton)
 							table.insert(connections, buyButton.MouseButton1Click:Connect(function()
 								local player = Players.LocalPlayer
+								local actualProductName = productName or child.Name
+								local productData = Products.ids[actualProductName]
+								
 								-- Check if already owned
 								local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
-								local isUnlocked = unlockedMorphs[productName] ~= nil
+								local isUnlocked = unlockedMorphs[actualProductName] ~= nil
 								
 								if not isUnlocked then
 									-- Prompt the purchase using Products module
 									if productData then
-										Products.prompt(player, productName)
+										print("UIManager: Prompting purchase for", actualProductName, "productId:", productData.productId)
+										Products.prompt(player, actualProductName)
 									else
 										-- Try generic morph purchase
-										MorphServiceClient:purchaseMorph(productName)
+										print("UIManager: No product data found for", actualProductName, "- trying MorphService")
+										MorphServiceClient:purchaseMorph(actualProductName)
 									end
+								else
+									print("UIManager: Already owns", actualProductName)
 								end
 							end))
 						end
@@ -452,7 +499,7 @@ local function updateAllMorphs()
 						
 						for _, child in itemContainer:GetChildren() do
 							if child:IsA("Frame") or child:IsA("ImageLabel") then
-								local productName = child.Name
+								local productName = getProductNameFromItem(child) or child.Name
 								local isUnlocked = unlockedMorphs[productName] ~= nil
 								
 								-- Update BuyButton state
