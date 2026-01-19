@@ -221,7 +221,12 @@ end
 
 -- Setup Morph Screen
 local function setupMorphScreen()
-	if not morphScreen then return end
+	if not morphScreen then 
+		print("UIManager: MorphScreen not found")
+		return 
+	end
+	
+	print("UIManager: Setting up MorphScreen")
 	
 	-- Initially hide
 	morphScreen.Visible = false
@@ -229,15 +234,20 @@ local function setupMorphScreen()
 	
 	-- Find MorphList and setup each morph template
 	local morphList = morphScreen:FindFirstChild("Page", true)
+	print("UIManager: MorphScreen Page found:", morphList ~= nil)
 	if morphList then
 		local list = morphList:FindFirstChild("MorphList")
+		print("UIManager: MorphScreen MorphList found:", list ~= nil)
 		if list then
+			print("UIManager: MorphScreen MorphList has", #list:GetChildren(), "children")
 			for _, child in list:GetChildren() do
 				if child:IsA("Frame") or child:IsA("ImageLabel") then
 					local morphName = child.Name
+					print("UIManager: MorphScreen child:", morphName, "inMorphs:", Morphs[morphName] ~= nil)
 					if Morphs[morphName] then
 						-- Setup PurchaseButton click
 						local purchaseButton = child:FindFirstChild("PurchaseButton") :: GuiButton?
+						print("UIManager: MorphScreen PurchaseButton found for", morphName, ":", purchaseButton ~= nil)
 						if purchaseButton then
 							setupButtonAnimation(purchaseButton)
 							table.insert(connections, purchaseButton.MouseButton1Click:Connect(function()
@@ -245,15 +255,20 @@ local function setupMorphScreen()
 								local isUnlocked = unlockedMorphs[morphName] ~= nil
 								local equippedMorph = DataService:get({ "equippedMorph" })
 								
+								print("UIManager: PurchaseButton clicked for morph:", morphName, "isUnlocked:", isUnlocked, "equippedMorph:", equippedMorph)
+								
 								if isUnlocked then
 									-- Equip or unequip
 									if equippedMorph == morphName then
+										print("UIManager: Calling unequipMorph")
 										MorphServiceClient:unequipMorph()
 									else
+										print("UIManager: Calling equipMorph with", morphName)
 										MorphServiceClient:equipMorph(morphName)
 									end
 								else
 									-- Try to purchase
+									print("UIManager: Calling purchaseMorph with", morphName)
 									MorphServiceClient:purchaseMorph(morphName)
 								end
 							end))
@@ -267,7 +282,12 @@ end
 
 -- Setup Coin Shop Screen
 local function setupCoinShopScreen()
-	if not coinShopScreen then return end
+	if not coinShopScreen then 
+		print("UIManager: CoinShopScreen not found")
+		return 
+	end
+	
+	print("UIManager: Setting up CoinShopScreen")
 	
 	-- Initially hide
 	coinShopScreen.Visible = false
@@ -284,16 +304,21 @@ local function setupCoinShopScreen()
 	
 	-- Find ShopList and Morphs container
 	local shopList = coinShopScreen:FindFirstChild("ShopList", true)
+	print("UIManager: CoinShop ShopList found:", shopList ~= nil)
 	if shopList then
 		local morphsSection = shopList:FindFirstChild("Morphs", true)
+		print("UIManager: CoinShop Morphs section found:", morphsSection ~= nil)
 		if morphsSection then
 			local content = morphsSection:FindFirstChild("Content")
+			print("UIManager: CoinShop Content found:", content ~= nil)
 			if content then
 				-- Check if there's a Grid inside Content
 				local grid = content:FindFirstChild("Grid")
 				local itemContainer = grid or content
+				print("UIManager: CoinShop using container:", itemContainer.Name, "with", #itemContainer:GetChildren(), "children")
 				
 				for _, child in itemContainer:GetChildren() do
+					print("UIManager: CoinShop child:", child.Name, "IsA Frame/ImageLabel:", child:IsA("Frame") or child:IsA("ImageLabel"))
 					if child:IsA("Frame") or child:IsA("ImageLabel") then
 						local morphName = child.Name
 						-- Also check ProductName label for actual morph name
@@ -304,9 +329,11 @@ local function setupCoinShopScreen()
 							end
 						end
 						
+						print("UIManager: CoinShop checking morphName:", morphName, "inCoinMorphs:", CoinMorphs[morphName] ~= nil)
 						if CoinMorphs[morphName] then
 							-- Setup BuyButton click and animation
 							local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
+							print("UIManager: CoinShop BuyButton found:", buyButton ~= nil)
 							if buyButton then
 								print("UIManager: Setting up CoinShop BuyButton animation for", morphName)
 								setupButtonAnimation(buyButton)
@@ -319,6 +346,8 @@ local function setupCoinShopScreen()
 									if not isUnlocked then
 										print("UIManager: Purchasing coin morph", capturedMorphName)
 										MorphServiceClient:purchaseCoinMorph(capturedMorphName)
+									else
+										print("UIManager: Already owns coin morph", capturedMorphName)
 									end
 								end))
 							end
