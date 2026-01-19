@@ -316,22 +316,21 @@ end
 
 -- Helper: Get product name from a shop item (either from ProductName TextLabel or item.Name)
 local function getProductNameFromItem(item: Instance): string?
-	-- First check if there's a ProductName TextLabel
+	-- First priority: check ProductName TextLabel - this is how React UI stored the product key
 	local productNameLabel = item:FindFirstChild("ProductName") :: TextLabel?
 	if productNameLabel and productNameLabel:IsA("TextLabel") then
-		-- The ProductName label text might be the display name, but the actual key is often the item name
-		-- If item.Name is a number (like "1"), we need to find the product by checking Products.ids
-		local itemName = item.Name
-		if Products.ids[itemName] then
-			return itemName
+		local labelText = productNameLabel.Text
+		-- Check if the label text directly matches a product key
+		if Products.ids[labelText] then
+			return labelText
 		end
-		-- Otherwise try to match by checking if any product exists in Morphs
-		if Morphs[itemName] then
-			return itemName
+		-- Check if it matches a morph name
+		if Morphs[labelText] then
+			return labelText
 		end
 	end
 	
-	-- If item name directly matches a product or morph, use it
+	-- Second priority: check if item name directly matches a product or morph
 	if Products.ids[item.Name] then
 		return item.Name
 	end
@@ -339,13 +338,11 @@ local function getProductNameFromItem(item: Instance): string?
 		return item.Name
 	end
 	
-	-- Last resort: check ProductName label text against known products
-	local productNameLabel2 = item:FindFirstChild("ProductName") :: TextLabel?
-	if productNameLabel2 and productNameLabel2:IsA("TextLabel") then
-		local displayText = productNameLabel2.Text
-		-- Try to find a morph with matching displayName
+	-- Third priority: try to find morph by display name
+	if productNameLabel and productNameLabel:IsA("TextLabel") then
+		local displayText = productNameLabel.Text
 		for morphName, morphData in Morphs do
-			if morphData.displayName == displayText or morphName == displayText then
+			if morphData.displayName == displayText then
 				return morphName
 			end
 		end
@@ -364,7 +361,12 @@ local function setupShopScreen()
 	
 	-- Find ShopList which contains Morphs and LimitedMorphs sections
 	local shopList = shopScreen:FindFirstChild("ShopList", true)
-	if not shopList then return end
+	if not shopList then 
+		print("UIManager: ShopList not found in Shop screen")
+		return 
+	end
+	
+	print("UIManager: Setting up Shop screen, found ShopList")
 	
 	-- Process both Morphs and LimitedMorphs sections
 	for _, section in shopList:GetChildren() do
@@ -374,38 +376,47 @@ local function setupShopScreen()
 				local grid = content:FindFirstChild("Grid")
 				local itemContainer = grid or content
 				
+				print("UIManager: Processing section", section.Name, "with", #itemContainer:GetChildren(), "items")
+				
 				for _, child in itemContainer:GetChildren() do
 					if child:IsA("Frame") or child:IsA("ImageLabel") then
-						-- Get the actual product name
+						-- Get the actual product name from ProductName TextLabel or the item name
 						local productName = getProductNameFromItem(child)
+						print("UIManager: Item", child.Name, "resolved to product:", productName or "nil")
 						
 						-- Setup BuyButton click
 						local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
 						if buyButton then
 							setupButtonAnimation(buyButton)
+							
+							-- Store productName in closure
+							local capturedProductName = productName or child.Name
+							
 							table.insert(connections, buyButton.MouseButton1Click:Connect(function()
 								local player = Players.LocalPlayer
-								local actualProductName = productName or child.Name
-								local productData = Products.ids[actualProductName]
+								local productData = Products.ids[capturedProductName]
 								
 								-- Check if already owned
 								local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
-								local isUnlocked = unlockedMorphs[actualProductName] ~= nil
+								local isUnlocked = unlockedMorphs[capturedProductName] ~= nil
 								
 								if not isUnlocked then
-									-- Prompt the purchase using Products module
+									-- Prompt the purchase using Products module (same as ProductButton)
 									if productData then
-										print("UIManager: Prompting purchase for", actualProductName, "productId:", productData.productId)
-										Products.prompt(player, actualProductName)
+										print("UIManager: Prompting Robux purchase for", capturedProductName, "productId:", productData.productId)
+										Products.prompt(player, capturedProductName)
 									else
-										-- Try generic morph purchase
-										print("UIManager: No product data found for", actualProductName, "- trying MorphService")
-										MorphServiceClient:purchaseMorph(actualProductName)
+										-- Try generic morph purchase if no specific product
+										print("UIManager: No product data for", capturedProductName, "- using UnlockMorph")
+										-- For morphs without their own product, use UnlockMorph generic product
+										Products.prompt(player, "UnlockMorph")
 									end
 								else
-									print("UIManager: Already owns", actualProductName)
+									print("UIManager: Already owns", capturedProductName)
 								end
 							end))
+							
+							print("UIManager: Connected BuyButton for", capturedProductName)
 						end
 					end
 				end
