@@ -30,6 +30,7 @@ local gameGui: ScreenGui
 local leftBar: Frame
 local morphScreen: Frame?
 local coinShopScreen: Frame?
+local shopScreen: Frame?
 local newMorphPopup: Frame?
 
 -- Helper: Get player's coins from leaderstats
@@ -99,6 +100,8 @@ local function openMenu(menuId: string)
 			slideOut(morphScreen)
 		elseif currentOpenMenu == "CoinShop" and coinShopScreen then
 			slideOut(coinShopScreen)
+		elseif currentOpenMenu == "Shop" and shopScreen then
+			slideOut(shopScreen)
 		end
 	end
 	
@@ -109,6 +112,8 @@ local function openMenu(menuId: string)
 			slideOut(morphScreen)
 		elseif menuId == "CoinShop" and coinShopScreen then
 			slideOut(coinShopScreen)
+		elseif menuId == "Shop" and shopScreen then
+			slideOut(shopScreen)
 		end
 		currentOpenMenu = nil
 	else
@@ -117,6 +122,8 @@ local function openMenu(menuId: string)
 			slideIn(morphScreen)
 		elseif menuId == "CoinShop" and coinShopScreen then
 			slideIn(coinShopScreen)
+		elseif menuId == "Shop" and shopScreen then
+			slideIn(shopScreen)
 		end
 		currentOpenMenu = menuId
 	end
@@ -147,8 +154,7 @@ local function setupLeftBar()
 	if shopButton then
 		setupButtonAnimation(shopButton)
 		table.insert(connections, shopButton.MouseButton1Click:Connect(function()
-			-- Open shop - for now just show morph screen with shop tab
-			openMenu("Morph")
+			openMenu("Shop")
 		end))
 	end
 end
@@ -308,6 +314,59 @@ local function setupNewMorphPopup()
 	newMorphPopup.Position = UDim2.fromScale(0.5, 1.5)
 end
 
+-- Setup Shop Screen (Robux purchases)
+local function setupShopScreen()
+	if not shopScreen then return end
+	
+	-- Initially hide
+	shopScreen.Visible = false
+	shopScreen.Position = UDim2.fromScale(0.5, 1.5)
+	
+	-- Find ShopList which contains Morphs and LimitedMorphs sections
+	local shopList = shopScreen:FindFirstChild("ShopList", true)
+	if not shopList then return end
+	
+	-- Process both Morphs and LimitedMorphs sections
+	for _, section in shopList:GetChildren() do
+		if section.Name == "Morphs" or section.Name == "LimitedMorphs" then
+			local content = section:FindFirstChild("Content")
+			if content then
+				local grid = content:FindFirstChild("Grid")
+				local itemContainer = grid or content
+				
+				for _, child in itemContainer:GetChildren() do
+					if child:IsA("Frame") or child:IsA("ImageLabel") then
+						local productName = child.Name
+						local productData = Products.ids[productName]
+						
+						-- Setup BuyButton click
+						local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
+						if buyButton then
+							setupButtonAnimation(buyButton)
+							table.insert(connections, buyButton.MouseButton1Click:Connect(function()
+								local player = Players.LocalPlayer
+								-- Check if already owned
+								local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
+								local isUnlocked = unlockedMorphs[productName] ~= nil
+								
+								if not isUnlocked then
+									-- Prompt the purchase using Products module
+									if productData then
+										Products.prompt(player, productName)
+									else
+										-- Try generic morph purchase
+										MorphServiceClient:purchaseMorph(productName)
+									end
+								end
+							end))
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 -- Show new morph popup
 local function showNewMorphPopup(morphName: string)
 	if not newMorphPopup then return end
@@ -379,6 +438,45 @@ local function updateAllMorphs()
 			end
 		end
 	end
+	
+	-- Update Shop Screen templates (Robux purchases)
+	if shopScreen then
+		local shopList = shopScreen:FindFirstChild("ShopList", true)
+		if shopList then
+			for _, section in shopList:GetChildren() do
+				if section.Name == "Morphs" or section.Name == "LimitedMorphs" then
+					local content = section:FindFirstChild("Content")
+					if content then
+						local grid = content:FindFirstChild("Grid")
+						local itemContainer = grid or content
+						
+						for _, child in itemContainer:GetChildren() do
+							if child:IsA("Frame") or child:IsA("ImageLabel") then
+								local productName = child.Name
+								local isUnlocked = unlockedMorphs[productName] ~= nil
+								
+								-- Update BuyButton state
+								local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
+								if buyButton then
+									-- Find text label inside button
+									for _, desc in buyButton:GetDescendants() do
+										if desc:IsA("TextLabel") and (desc.Name == "CostLabel" or desc.Name == "TextLabel") then
+											if isUnlocked then
+												desc.Text = "Owned"
+											end
+										end
+									end
+									
+									-- Disable button if owned
+									buyButton.Active = not isUnlocked
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
 end
 
 -- Update coins display
@@ -439,12 +537,14 @@ function UIManager.init()
 	leftBar = gameGui:FindFirstChild("LeftBar") :: Frame
 	morphScreen = gameGui:FindFirstChild("Morph") :: Frame?
 	coinShopScreen = gameGui:FindFirstChild("CoinShop") :: Frame?
+	shopScreen = gameGui:FindFirstChild("Shop") :: Frame?
 	newMorphPopup = gameGui:FindFirstChild("NewMorph") :: Frame?
 	
 	-- Setup all UI components
 	setupLeftBar()
 	setupMorphScreen()
 	setupCoinShopScreen()
+	setupShopScreen()
 	setupNewMorphPopup()
 	
 	-- Setup data listeners
