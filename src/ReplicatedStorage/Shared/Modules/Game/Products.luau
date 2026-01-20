@@ -50,6 +50,12 @@ local ids: {
 		type = "DevProduct",
 		oneTime = false,
 	},
+
+	["BuyGoldPack"] = {
+		productId = 000010000,
+		type = "DevProduct",
+		oneTime = false,
+	},
 }
 
 local function _getDevProducts(player)
