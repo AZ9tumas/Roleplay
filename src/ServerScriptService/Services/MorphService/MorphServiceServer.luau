@@ -5,6 +5,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local DataService = require(ReplicatedStorage.Packages.DataService).server
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
@@ -29,7 +30,7 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 		return
 	end
 
-	local morphModel = ReplicatedStorage.Assets.Morphs:FindFirstChild(morph)
+	local morphModel = ServerStorage.Morphs:FindFirstChild(morph)
 	if not morphModel then
 		return
 	end
@@ -128,7 +129,7 @@ function MorphServiceServer.equipMorph(self: MorphServiceServer, player, morph)
 		return
 	end
 
-	local morphModel = ReplicatedStorage.Assets.Morphs:FindFirstChild(morph)
+	local morphModel = ServerStorage.Morphs:FindFirstChild(morph)
 	if not morphModel then
 		return
 	end
