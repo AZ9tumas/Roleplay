@@ -19,15 +19,20 @@ function GoalServiceServer.updateProgressBar(_self: GoalServiceServer): ()
 		return
 	end
 
-	local mainBar = workspace:FindFirstChild("Map")
-		and workspace.Map:FindFirstChild("Spawn")
-		and workspace.Map.Spawn:FindFirstChild("Info")
-		and workspace.Map.Spawn.Info:FindFirstChild("Untitled")
-		and workspace.Map.Spawn.Info.Untitled:FindFirstChild("Progressbar")
-		and workspace.Map.Spawn.Info.Untitled.Progressbar:FindFirstChild("SurfaceGui")
-		and workspace.Map.Spawn.Info.Untitled.Progressbar.SurfaceGui:FindFirstChild("Container")
-		and workspace.Map.Spawn.Info.Untitled.Progressbar.SurfaceGui.Container:FindFirstChild("ProgressBar")
-		and workspace.Map.Spawn.Info.Untitled.Progressbar.SurfaceGui.Container.ProgressBar:FindFirstChild("Bar")
+	--local heh = workspace.Map.Spawn.Info.Untitled.Progressbar.SurfaceGui.Container.ProgressBar.Bar
+	--print(heh)
+
+	local mainBar = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("Spawn")
+		and workspace.Map.Spawn:WaitForChild("Info")
+		and workspace.Map.Spawn.Info:WaitForChild("Untitled")
+		and workspace.Map.Spawn.Info.Untitled:WaitForChild("Progressbar")
+		and workspace.Map.Spawn.Info.Untitled.Progressbar:WaitForChild("SurfaceGui")
+		and workspace.Map.Spawn.Info.Untitled.Progressbar.SurfaceGui:WaitForChild("Container")
+		and workspace.Map.Spawn.Info.Untitled.Progressbar.SurfaceGui.Container:WaitForChild("ProgressBar")
+		and workspace.Map.Spawn.Info.Untitled.Progressbar.SurfaceGui.Container.ProgressBar:WaitForChild("Bar")
+	
+	local progressValue: TextLabel = mainBar.Parent:WaitForChild("ProgressValue")
 
 	if not mainBar then
 		warn("Progress bar not found in workspace")
@@ -41,6 +46,8 @@ function GoalServiceServer.updateProgressBar(_self: GoalServiceServer): ()
 
 	local oldSize = mainBar.Size
 	mainBar.Size = UDim2.new(oldSize.X.Scale, oldSize.X.Offset, percentage, oldSize.Y.Offset)
+
+	progressValue.Text = accomplished.Value .. "/" .. targetGoal.Value
 end
 
 function GoalServiceServer.init(self: GoalServiceServer): ()
