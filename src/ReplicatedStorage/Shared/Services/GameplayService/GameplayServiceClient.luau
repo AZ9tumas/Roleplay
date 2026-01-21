@@ -53,18 +53,18 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 	local elapsedTime = currentTime - serverJoinTime
 	remainingTime = math.max(TIMER_DURATION - elapsedTime, 0)
 
-	local mapGoalPack = workspace:WaitForChild("Map")
-		and workspace.Map:WaitForChild("GoalPack")
-		and workspace.Map.GoalPack:WaitForChild("MainWall")
-		and workspace.Map.GoalPack.MainWall:WaitForChild("SurfaceGui")
-		and workspace.Map.GoalPack.MainWall.SurfaceGui:WaitForChild("Frame")
-		and workspace.Map.GoalPack.MainWall.SurfaceGui.Frame:WaitForChild("Time")
-	if not mapGoalPack then
+	local mapGoldPack = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("GoldPack")
+		and workspace.Map.GoldPack:WaitForChild("MainWall")
+		and workspace.Map.GoldPack.MainWall:WaitForChild("SurfaceGui")
+		and workspace.Map.GoldPack.MainWall.SurfaceGui:WaitForChild("Frame")
+		and workspace.Map.GoldPack.MainWall.SurfaceGui.Frame:WaitForChild("Time")
+	if not mapGoldPack then
 		warn("Time label not found in workspace")
 		return
 	end
 
-	timeLabel = mapGoalPack :: TextLabel
+	timeLabel = mapGoldPack :: TextLabel
 	timeLabel.Text = getTimeText(remainingTime)
 	
 	-- If timer already expired when player joins, enable prompt immediately

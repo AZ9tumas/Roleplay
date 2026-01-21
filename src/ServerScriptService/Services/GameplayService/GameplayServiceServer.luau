@@ -6,7 +6,8 @@ local ServerStorage = game:GetService("ServerStorage")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 
-local TIMER_DURATION = 30 * 60 -- 30 minutes in seconds
+local goldPack: Folder = ServerStorage:WaitForChild("GoldPack")
+local TIMER_DURATION = goldPack:WaitForChild("Time").Value
 
 local GameplayServiceServer = {}
 
