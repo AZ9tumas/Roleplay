@@ -26,12 +26,11 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 	remainingTime = math.max(TIMER_DURATION - elapsedTime, 0)
 
 	local mapGoalPack = workspace:WaitForChild("Map")
-		and workspace.Map:WaitForChild("GoalPack")
-		and workspace.Map.GoalPack:WaitForChild("MainWall")
-		and workspace.Map.GoalPack.MainWall:WaitForChild("SurfaceGui")
-		and workspace.Map.GoalPack.MainWall.SurfaceGui:WaitForChild("Frame")
-		and workspace.Map.GoalPack.MainWall.SurfaceGui.Frame:WaitForChild("Time")
-
+		and workspace.Map:WaitForChild("GoldPack")
+		and workspace.Map.GoldPack:WaitForChild("MainWall")
+		and workspace.Map.GoldPack.MainWall:WaitForChild("SurfaceGui")
+		and workspace.Map.GoldPack.MainWall.SurfaceGui:WaitForChild("Frame")
+		and workspace.Map.GoldPack.MainWall.SurfaceGui.Frame:WaitForChild("Time")
 	if not mapGoalPack then
 		warn("Time label not found in workspace")
 		return
@@ -39,6 +38,8 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 
 	timeLabel = mapGoalPack :: TextLabel
 	timeLabel.Text = getTimeText(remainingTime)
+
+	print("Connection setup")
 
 	RunService.Heartbeat:Connect(function(dt: number)
 		if remainingTime > 0 then
