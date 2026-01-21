@@ -1,19 +1,13 @@
 --!strict
 
-local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
+local Networker = require(ReplicatedStorage.Packages.Networker)
 
 local GameplayServiceServer = {}
 
-local remainingTime: number = 0
-local timeLabel: TextLabel? = nil
-
-local function getTimeText(seconds: number): string
-	local hours = math.floor(seconds / 3600)
-	local minutes = math.floor((seconds % 3600) / 60)
-	local secs = math.floor(seconds % 60)
-	return string.format("%02d:%02d:%02d", hours, minutes, secs)
-end
+local playerJoinTimes: { [Player]: number } = {}
 
 function GameplayServiceServer.updateProgressBar(_self: GameplayServiceServer): ()
 	local goalStats = ServerStorage:FindFirstChild("GoalStats")
@@ -58,51 +52,37 @@ function GameplayServiceServer.updateProgressBar(_self: GameplayServiceServer): 
 	progressValue.Text = accomplished.Value .. "/" .. targetGoal.Value
 end
 
-function GameplayServiceServer.initTimer(_self: GameplayServiceServer): ()
-	local goalPack = ServerStorage:FindFirstChild("GoalPack")
-	if not goalPack then
-		warn("GoalPack folder not found in ServerStorage")
-		return
-	end
-
-	local timeValue = goalPack:FindFirstChild("Time") :: IntValue?
-	if not timeValue then
-		warn("Time IntValue not found in GoalPack")
-		return
-	end
-
-	remainingTime = timeValue.Value
-
-	local mapGoalPack = workspace:WaitForChild("Map")
-		and workspace.Map:WaitForChild("GoalPack")
-		and workspace.Map.GoalPack:WaitForChild("MainWall")
-		and workspace.Map.GoalPack.MainWall:WaitForChild("SurfaceGui")
-		and workspace.Map.GoalPack.MainWall.SurfaceGui:WaitForChild("Frame")
-		and workspace.Map.GoalPack.MainWall.SurfaceGui.Frame:WaitForChild("Time")
-
-	if not mapGoalPack then
-		warn("Time label not found in workspace")
-		return
-	end
-
-	timeLabel = mapGoalPack :: TextLabel
-	timeLabel.Text = getTimeText(remainingTime)
-
-	RunService.Heartbeat:Connect(function(dt: number)
-		if remainingTime > 0 then
-			remainingTime = math.max(remainingTime - dt, 0)
-			if timeLabel then
-				timeLabel.Text = getTimeText(remainingTime)
-			end
-		end
-	end)
+function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: Player): ()
+	local joinTime = os.time()
+	playerJoinTimes[player] = joinTime
+	
+	-- Send join time to client so it can initialize its timer
+	self.networker:fire(player, "initTimer", joinTime)
 end
 
 function GameplayServiceServer.init(self: GameplayServiceServer): ()
+	self.networker = Networker.server.new("Gameplay", self, {})
+	
 	self:updateProgressBar()
-	self:initTimer()
+	
+	-- Initialize timer for existing players
+	for _, player in Players:GetPlayers() do
+		self:_initPlayer(player)
+	end
+	
+	-- Initialize timer for new players
+	Players.PlayerAdded:Connect(function(player: Player)
+		self:_initPlayer(player)
+	end)
+	
+	-- Cleanup on player leave
+	Players.PlayerRemoving:Connect(function(player: Player)
+		playerJoinTimes[player] = nil
+	end)
 end
 
-type GameplayServiceServer = typeof(GameplayServiceServer)
+type GameplayServiceServer = typeof(GameplayServiceServer) & {
+	networker: Networker.Server,
+}
 
 return GameplayServiceServer :: GameplayServiceServer
