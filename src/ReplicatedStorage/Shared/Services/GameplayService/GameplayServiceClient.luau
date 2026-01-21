@@ -11,12 +11,40 @@ local GameplayServiceClient = {}
 
 local remainingTime: number = TIMER_DURATION
 local timeLabel: TextLabel? = nil
+local promptEnabled: boolean = false
 
 local function getTimeText(seconds: number): string
 	local hours = math.floor(seconds / 3600)
 	local minutes = math.floor((seconds % 3600) / 60)
 	local secs = math.floor(seconds % 60)
 	return string.format("%02d:%02d:%02d", hours, minutes, secs)
+end
+
+function GameplayServiceClient._enablePromptAndConnect(self: GameplayServiceClient): ()
+	local promptPart = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("GoalPack")
+		and workspace.Map.GoalPack:WaitForChild("Prompt")
+	
+	if not promptPart then
+		warn("Prompt part not found in workspace")
+		return
+	end
+	
+	local prompt = promptPart:FindFirstChild("ProximityPrompt") :: ProximityPrompt?
+	if not prompt then
+		warn("ProximityPrompt not found in Prompt part")
+		return
+	end
+	
+	-- Enable the prompt after timer expires
+	prompt.Enabled = true
+	promptEnabled = true
+	
+	-- Connect to the triggered event only after timer expires for security
+	prompt.Triggered:Connect(function(_player: Player)
+		-- Send request to server to validate and prompt purchase
+		self.networker:fire("requestGoldPackPurchase")
+	end)
 end
 
 function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoinTime: number): ()
@@ -26,11 +54,11 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 	remainingTime = math.max(TIMER_DURATION - elapsedTime, 0)
 
 	local mapGoalPack = workspace:WaitForChild("Map")
-		and workspace.Map:WaitForChild("GoldPack")
-		and workspace.Map.GoldPack:WaitForChild("MainWall")
-		and workspace.Map.GoldPack.MainWall:WaitForChild("SurfaceGui")
-		and workspace.Map.GoldPack.MainWall.SurfaceGui:WaitForChild("Frame")
-		and workspace.Map.GoldPack.MainWall.SurfaceGui.Frame:WaitForChild("Time")
+		and workspace.Map:WaitForChild("GoalPack")
+		and workspace.Map.GoalPack:WaitForChild("MainWall")
+		and workspace.Map.GoalPack.MainWall:WaitForChild("SurfaceGui")
+		and workspace.Map.GoalPack.MainWall.SurfaceGui:WaitForChild("Frame")
+		and workspace.Map.GoalPack.MainWall.SurfaceGui.Frame:WaitForChild("Time")
 	if not mapGoalPack then
 		warn("Time label not found in workspace")
 		return
@@ -38,6 +66,11 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 
 	timeLabel = mapGoalPack :: TextLabel
 	timeLabel.Text = getTimeText(remainingTime)
+	
+	-- If timer already expired when player joins, enable prompt immediately
+	if remainingTime <= 0 and not promptEnabled then
+		self:_enablePromptAndConnect()
+	end
 
 	print("Connection setup")
 
@@ -46,6 +79,11 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 			remainingTime = math.max(remainingTime - dt, 0)
 			if timeLabel then
 				timeLabel.Text = getTimeText(remainingTime)
+			end
+			
+			-- Enable prompt when timer reaches 0
+			if remainingTime <= 0 and not promptEnabled then
+				self:_enablePromptAndConnect()
 			end
 		end
 	end)

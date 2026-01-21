@@ -4,6 +4,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Networker = require(ReplicatedStorage.Packages.Networker)
+local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
+
+local TIMER_DURATION = 30 * 60 -- 30 minutes in seconds
 
 local GameplayServiceServer = {}
 
@@ -52,6 +55,32 @@ function GameplayServiceServer.updateProgressBar(_self: GameplayServiceServer): 
 	progressValue.Text = accomplished.Value .. "/" .. targetGoal.Value
 end
 
+function GameplayServiceServer.isTimerExpired(_self: GameplayServiceServer, player: Player): boolean
+	local joinTime = playerJoinTimes[player]
+	if not joinTime then
+		return false
+	end
+	
+	local currentTime = os.time()
+	local elapsedTime = currentTime - joinTime
+	return elapsedTime >= TIMER_DURATION
+end
+
+function GameplayServiceServer.getPlayerJoinTime(_self: GameplayServiceServer, player: Player): number?
+	return playerJoinTimes[player]
+end
+
+function GameplayServiceServer.requestGoldPackPurchase(self: GameplayServiceServer, player: Player): ()
+	-- Validate that the timer has expired for this player
+	if not self:isTimerExpired(player) then
+		warn("Player " .. player.Name .. " tried to purchase GoldPack before timer expired")
+		return
+	end
+	
+	-- Prompt the BuyGoldPack purchase
+	Products.prompt(player, "BuyGoldPack")
+end
+
 function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: Player): ()
 	local joinTime = os.time()
 	playerJoinTimes[player] = joinTime
@@ -61,7 +90,9 @@ function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: 
 end
 
 function GameplayServiceServer.init(self: GameplayServiceServer): ()
-	self.networker = Networker.server.new("Gameplay", self, {})
+	self.networker = Networker.server.new("Gameplay", self, {
+		self.requestGoldPackPurchase,
+	})
 	
 	self:updateProgressBar()
 	
