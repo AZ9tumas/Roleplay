@@ -86,8 +86,8 @@ function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: 
 	local joinTime = os.time()
 	playerJoinTimes[player] = joinTime
 	
-	-- Send join time to client so it can initialize its timer
-	self.networker:fire(player, "initTimer", joinTime)
+	-- Send join time and timer duration to client so it can initialize its timer
+	self.networker:fire(player, "initTimer", joinTime, TIMER_DURATION)
 end
 
 function GameplayServiceServer.init(self: GameplayServiceServer): ()
