@@ -5,7 +5,7 @@ local DataService = require(ReplicatedStorage.Packages.DataService)
 local DataTemplate = require(ReplicatedStorage.Shared.Modules.Main.DataTemplate)
 local MorphServiceServer = require(ServerScriptService.Services.MorphService.MorphServiceServer)
 local CoinServiceServer = require(ServerScriptService.Services.CoinService.CoinServiceServer)
-local GoalServiceServer = require(ServerScriptService.Services.GoalService.GoalServiceServer)
+local GameplayServiceServer = require(ServerScriptService.Services.GameplayService.GameplayServiceServer)
 
 DataService.server:init({
 	template = DataTemplate,
@@ -15,4 +15,4 @@ DataService.server:init({
 MorphServiceServer:init(true)
 MonetizationServiceServer:init()
 CoinServiceServer:init()
-GoalServiceServer:init()
+GameplayServiceServer:init()
