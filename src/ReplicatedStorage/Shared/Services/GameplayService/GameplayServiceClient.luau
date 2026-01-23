@@ -21,10 +21,17 @@ local morphPack1Deleted: boolean = false
 local morphPack2Deleted: boolean = false
 
 local function getTimeText(seconds: number): string
-	local hours = math.floor(seconds / 3600)
+	local days = math.floor(seconds / 86400) -- 86400 seconds in a day
+	local hours = math.floor((seconds % 86400) / 3600)
 	local minutes = math.floor((seconds % 3600) / 60)
 	local secs = math.floor(seconds % 60)
-	return string.format("%02d:%02d:%02d", hours, minutes, secs)
+	
+	-- Show dd:hh:mm:ss if >= 24 hours, otherwise hh:mm:ss
+	if days > 0 then
+		return string.format("%02d:%02d:%02d:%02d", days, hours, minutes, secs)
+	else
+		return string.format("%02d:%02d:%02d", hours, minutes, secs)
+	end
 end
 
 function GameplayServiceClient._enablePromptAndConnect(self: GameplayServiceClient): ()
