@@ -78,7 +78,7 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 	player.Character = newCharacter
 	newCharacter.Parent = workspace
 	humanoidRootPart.CFrame = cachedCFrame
-	humanoid.JumpPower = 0
+	--humanoid.JumpPower = 0
 
 	--> Character cleanup
 	task.wait()
