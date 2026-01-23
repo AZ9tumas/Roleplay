@@ -55,6 +55,8 @@ local function getPlayerCoins(): number
 	return DataService:get({ "coins" }) or 0
 end
 
+local function print(msg) end
+
 -- Helper: Setup button hover/click animations
 local function setupButtonAnimation(button: GuiButton)
 	local uiScale = button:FindFirstChildOfClass("UIScale")
@@ -486,14 +488,23 @@ local function showNewMorphPopup(morphName: string)
 	
 	-- Auto-dismiss on click
 	local clickConn: RBXScriptConnection?
+	
+	local function dismiss()
+		if clickConn then
+			clickConn:Disconnect()
+			clickConn = nil
+			slideOut(newMorphPopup)
+		end
+	end
+	
 	clickConn = game:GetService("UserInputService").InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			slideOut(newMorphPopup)
-			if clickConn then
-				clickConn:Disconnect()
-			end
+			dismiss()
 		end
 	end)
+	
+	-- Auto-dismiss after 2.5s
+	task.delay(2.5, dismiss)
 end
 
 -- Update all morph templates based on current data

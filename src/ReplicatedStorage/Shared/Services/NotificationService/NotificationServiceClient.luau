@@ -32,9 +32,16 @@ local textLabel: TextLabel? = nil
 local isAnimating: boolean = false
 local notificationQueue: { string } = {}
 
+-- Store default styles
+local defaultStyles = {
+	backgroundTransparency = 0,
+	textTransparency = 0,
+	textStrokeTransparency = 0,
+}
+
 -- Get the notification UI elements
 local function getNotificationUI(): (Frame?, TextLabel?)
-	if notificationFrame and textLabel then
+	if notificationFrame and textLabel and notificationFrame.Parent then
 		return notificationFrame, textLabel
 	end
 	
@@ -59,6 +66,15 @@ local function getNotificationUI(): (Frame?, TextLabel?)
 		return nil, nil
 	end
 	
+	-- Capture default styles before modifying them
+	defaultStyles.backgroundTransparency = notification.BackgroundTransparency
+	defaultStyles.textTransparency = label.TextTransparency
+	
+	local uiStroke = label:FindFirstChildOfClass("UIStroke")
+	if uiStroke then
+		defaultStyles.textStrokeTransparency = uiStroke.Transparency
+	end
+	
 	notificationFrame = notification
 	textLabel = label
 	
@@ -67,9 +83,10 @@ local function getNotificationUI(): (Frame?, TextLabel?)
 	notification.AnchorPoint = Vector2.new(0.5, 0)
 	notification.Visible = false
 	
-	-- Ensure transparency properties are set for animations
-	notification.BackgroundTransparency = 0
-	label.TextTransparency = 0
+	-- Ensure transparency properties are set (using defaults)
+	notification.BackgroundTransparency = defaultStyles.backgroundTransparency
+	label.TextTransparency = defaultStyles.textTransparency
+	label.BackgroundTransparency = 1 -- Ensure label background is transparent
 	
 	return notification, label
 end
@@ -87,15 +104,16 @@ local function animateNotification(message: string): ()
 	-- Set message text
 	label.Text = message
 	
-	-- Reset to initial state
+	-- Reset to initial state with correct transparency
 	frame.Position = UDim2.new(0.5, 0, -0.15, 0)
-	frame.BackgroundTransparency = 0
-	label.TextTransparency = 0
+	frame.BackgroundTransparency = defaultStyles.backgroundTransparency
+	label.TextTransparency = defaultStyles.textTransparency
+	label.BackgroundTransparency = 1
 	
 	-- Handle UIStroke if present
 	local uiStroke = label:FindFirstChildOfClass("UIStroke")
 	if uiStroke then
-		uiStroke.Transparency = 0
+		uiStroke.Transparency = defaultStyles.textStrokeTransparency
 	end
 	
 	frame.Visible = true
@@ -133,10 +151,10 @@ local function animateNotification(message: string): ()
 	-- Hide and reset
 	frame.Visible = false
 	frame.Position = UDim2.new(0.5, 0, -0.15, 0)
-	frame.BackgroundTransparency = 0
-	label.TextTransparency = 0
+	frame.BackgroundTransparency = defaultStyles.backgroundTransparency
+	label.TextTransparency = defaultStyles.textTransparency
 	if uiStroke then
-		uiStroke.Transparency = 0
+		uiStroke.Transparency = defaultStyles.textStrokeTransparency
 	end
 	
 	isAnimating = false
@@ -152,6 +170,7 @@ end
 
 -- Show a notification (queues if one is already showing)
 function NotificationServiceClient.showNotification(_self: NotificationServiceClient, message: string): ()
+	print("HEREEEE")
 	if isAnimating then
 		table.insert(notificationQueue, message)
 	else

@@ -164,6 +164,7 @@ function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player,
 	
 	-- Get notification service
 	local notificationService = getNotificationService()
+	print(notificationService)
 	
 	if foundInData then
 		-- Player already owns this morph

@@ -237,6 +237,7 @@ function GameplayServiceClient._setupTrophies(self: GameplayServiceClient): ()
 end
 
 function GameplayServiceClient.onTrophyClaimed(_self: GameplayServiceClient, trophyName: string): ()
+	warn("trophy claimed: " .. trophyName)
 	-- Delete the trophy model on the client
 	local trophiesFolder = workspace:FindFirstChild("Trophies")
 	if trophiesFolder then
