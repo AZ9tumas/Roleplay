@@ -12,13 +12,12 @@ local remainingTime: number = 0
 local timeLabel: TextLabel? = nil
 local promptEnabled: boolean = false
 
--- MorphPack state
-local morphPackTimeLimit1: number = 0
-local morphPackTimeLimit2: number = 0
-local morphPackTimerLabel1: TextLabel? = nil
-local morphPackTimerLabel2: TextLabel? = nil
-local morphPack1Deleted: boolean = false
-local morphPack2Deleted: boolean = false
+-- MorphPack state - table-based for modularity
+local morphPackState: { [number]: {
+	timeLimit: number,
+	timerLabel: TextLabel?,
+	deleted: boolean,
+} } = {}
 
 local function getTimeText(seconds: number): string
 	local days = math.floor(seconds / 86400) -- 86400 seconds in a day
@@ -100,36 +99,29 @@ function GameplayServiceClient._deleteMorphPackModel(standNumber: number): ()
 	end
 end
 
-function GameplayServiceClient.initMorphPackTimers(self: GameplayServiceClient, timeLimit1: number, timeLimit2: number): ()
-	morphPackTimeLimit1 = timeLimit1
-	morphPackTimeLimit2 = timeLimit2
-	
-	-- Get timer labels
-	morphPackTimerLabel1 = self._getMorphPackTimerLabel(1)
-	morphPackTimerLabel2 = self._getMorphPackTimerLabel(2)
-	
+function GameplayServiceClient.initMorphPackTimers(self: GameplayServiceClient, timeLimits: { [number]: number }): ()
 	local currentTime = os.time()
 	
-	-- Check if timers already expired
-	if currentTime >= morphPackTimeLimit1 and not morphPack1Deleted then
-		self._deleteMorphPackModel(1)
-		morphPack1Deleted = true
-	end
-	
-	if currentTime >= morphPackTimeLimit2 and not morphPack2Deleted then
-		self._deleteMorphPackModel(2)
-		morphPack2Deleted = true
-	end
-	
-	-- Initial timer text update
-	if morphPackTimerLabel1 and not morphPack1Deleted then
-		local remaining1 = math.max(morphPackTimeLimit1 - currentTime, 0)
-		morphPackTimerLabel1.Text = getTimeText(remaining1)
-	end
-	
-	if morphPackTimerLabel2 and not morphPack2Deleted then
-		local remaining2 = math.max(morphPackTimeLimit2 - currentTime, 0)
-		morphPackTimerLabel2.Text = getTimeText(remaining2)
+	-- Initialize state for each morph pack from the server-provided time limits
+	for packNumber, timeLimit in pairs(timeLimits) do
+		local timerLabel = self._getMorphPackTimerLabel(packNumber)
+		local isExpired = currentTime >= timeLimit
+		
+		morphPackState[packNumber] = {
+			timeLimit = timeLimit,
+			timerLabel = timerLabel,
+			deleted = false,
+		}
+		
+		-- If timer already expired, delete the model
+		if isExpired then
+			self._deleteMorphPackModel(packNumber)
+			morphPackState[packNumber].deleted = true
+		elseif timerLabel then
+			-- Initial timer text update
+			local remaining = math.max(timeLimit - currentTime, 0)
+			timerLabel.Text = getTimeText(remaining)
+		end
 	end
 end
 
@@ -179,29 +171,19 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 			end
 		end
 		
-		-- MorphPack1 timer (global countdown to timestamp)
-		if not morphPack1Deleted and morphPackTimeLimit1 > 0 then
-			local remaining1 = math.max(morphPackTimeLimit1 - currentTimeNow, 0)
-			if morphPackTimerLabel1 then
-				morphPackTimerLabel1.Text = getTimeText(remaining1)
-			end
-			
-			if remaining1 <= 0 then
-				self._deleteMorphPackModel(1)
-				morphPack1Deleted = true
-			end
-		end
-		
-		-- MorphPack2 timer (global countdown to timestamp)
-		if not morphPack2Deleted and morphPackTimeLimit2 > 0 then
-			local remaining2 = math.max(morphPackTimeLimit2 - currentTimeNow, 0)
-			if morphPackTimerLabel2 then
-				morphPackTimerLabel2.Text = getTimeText(remaining2)
-			end
-			
-			if remaining2 <= 0 then
-				self._deleteMorphPackModel(2)
-				morphPack2Deleted = true
+		-- MorphPack timers (global countdown to timestamp) - modular iteration
+		for packNumber, state in pairs(morphPackState) do
+			if not state.deleted and state.timeLimit > 0 then
+				local remaining = math.max(state.timeLimit - currentTimeNow, 0)
+				
+				if state.timerLabel then
+					state.timerLabel.Text = getTimeText(remaining)
+				end
+				
+				if remaining <= 0 then
+					self._deleteMorphPackModel(packNumber)
+					state.deleted = true
+				end
 			end
 		end
 	end)

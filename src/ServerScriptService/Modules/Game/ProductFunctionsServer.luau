@@ -6,40 +6,36 @@ local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 
 -- Configuration for pack rewards - easily changeable for future updates
 local GOLD_PACK_REWARD_MODEL = "AbbySaja"
-local MORPH_PACK_REWARDS = {
-	[1] = "AbbySaja",
-	[2] = "LimitedTimeMorphTest",
-}
-
--- Note: This will be initialized after GameplayServiceServer is required
-local GameplayServiceServer = nil
-local function getGameplayServiceServer()
-	if GameplayServiceServer == nil then
-		GameplayServiceServer = require(ServerScriptService.Services.GameplayService.GameplayServiceServer)
-	end
-	return GameplayServiceServer
-end
+local MORPH_PACK_1_REWARD = "AbbySaja"
+local MORPH_PACK_2_REWARD = "LimitedTimeMorphTest"
 
 return {
 	[Products.getProductId("MorphPack1")] = function(player: Player)
-		-- Get which pack the player was purchasing from the cache
-		local gameplayService = getGameplayServiceServer()
-		local packNumber = gameplayService.morphPackPurchaseCache[player] or 1
-		local rewardMorph = MORPH_PACK_REWARDS[packNumber] or MORPH_PACK_REWARDS[1]
-		
-		-- Give the player the reward morph
-		local rewardModel = ServerStorage:FindFirstChild("Morphs") and ServerStorage.Morphs:FindFirstChild(rewardMorph)
+		-- Give the player the MorphPack1 reward morph
+		local rewardModel = ServerStorage:FindFirstChild("Morphs") and ServerStorage.Morphs:FindFirstChild(MORPH_PACK_1_REWARD)
 		
 		if not rewardModel then
-			warn("Reward model " .. rewardMorph .. " not found in ServerStorage.Morphs")
+			warn("Reward model " .. MORPH_PACK_1_REWARD .. " not found in ServerStorage.Morphs")
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 		
 		-- Add the morph to the player's unlocked morphs
-		MorphServiceServer:addToData(player, rewardMorph)
+		MorphServiceServer:addToData(player, MORPH_PACK_1_REWARD)
 		
-		-- Clear the cache
-		gameplayService.morphPackPurchaseCache[player] = nil
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end,
+
+	[Products.getProductId("MorphPack2")] = function(player: Player)
+		-- Give the player the MorphPack2 reward morph
+		local rewardModel = ServerStorage:FindFirstChild("Morphs") and ServerStorage.Morphs:FindFirstChild(MORPH_PACK_2_REWARD)
+		
+		if not rewardModel then
+			warn("Reward model " .. MORPH_PACK_2_REWARD .. " not found in ServerStorage.Morphs")
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		
+		-- Add the morph to the player's unlocked morphs
+		MorphServiceServer:addToData(player, MORPH_PACK_2_REWARD)
 		
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end,

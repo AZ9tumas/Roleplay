@@ -32,6 +32,11 @@ local ids: {
 		type = "DevProduct",
 		oneTime = true,
 	},
+	["MorphPack2"] = {
+		productId = 000010000,
+		type = "DevProduct",
+		oneTime = true,
+	},
 	["LimitedMorphTest"] = {
 		productId = 3466413824,
 		type = "DevProduct",
