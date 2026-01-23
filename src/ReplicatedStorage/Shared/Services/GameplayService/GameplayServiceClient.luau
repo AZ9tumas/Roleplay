@@ -5,11 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 
-local TIMER_DURATION = 30 * 60 -- 30 minutes in seconds
-
 local GameplayServiceClient = {}
 
-local remainingTime: number = TIMER_DURATION
+local timerDuration: number = 0
+local remainingTime: number = 0
 local timeLabel: TextLabel? = nil
 local promptEnabled: boolean = false
 
@@ -47,11 +46,14 @@ function GameplayServiceClient._enablePromptAndConnect(self: GameplayServiceClie
 	end)
 end
 
-function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoinTime: number): ()
+function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoinTime: number, serverTimerDuration: number): ()
+	-- Set the timer duration from server
+	timerDuration = serverTimerDuration
+	
 	-- Calculate remaining time based on when player joined
 	local currentTime = os.time()
 	local elapsedTime = currentTime - serverJoinTime
-	remainingTime = math.max(TIMER_DURATION - elapsedTime, 0)
+	remainingTime = math.max(timerDuration - elapsedTime, 0)
 
 	local mapGoldPack = workspace:WaitForChild("Map")
 		and workspace.Map:WaitForChild("GoldPack")
