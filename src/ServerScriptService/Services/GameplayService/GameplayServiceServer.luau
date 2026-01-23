@@ -9,9 +9,21 @@ local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local goldPack: Folder = ServerStorage:WaitForChild("GoldPack")
 local TIMER_DURATION = goldPack:WaitForChild("Time").Value
 
+-- MorphPack configuration
+local morphPackFolder: Folder = ServerStorage:WaitForChild("MorphPack")
+local MORPH_PACK_TIME_LIMIT_1 = morphPackFolder:WaitForChild("TimeLimit1").Value -- Timestamp in the future
+local MORPH_PACK_TIME_LIMIT_2 = morphPackFolder:WaitForChild("TimeLimit2").Value -- Timestamp in the future
+
 local GameplayServiceServer = {}
 
 local playerJoinTimes: { [Player]: number } = {}
+
+-- Cache for which morph pack the player is purchasing
+GameplayServiceServer.morphPackPurchaseCache = {} :: { [Player]: number }
+
+-- Debounce cache to prevent touch spam
+local touchDebounce: { [Player]: number } = {}
+local TOUCH_DEBOUNCE_TIME = 2 -- seconds
 
 function GameplayServiceServer.updateProgressBar(_self: GameplayServiceServer): ()
 	local goalStats = ServerStorage:FindFirstChild("GoalStats")
@@ -67,6 +79,16 @@ function GameplayServiceServer.isTimerExpired(_self: GameplayServiceServer, play
 	return elapsedTime >= TIMER_DURATION
 end
 
+function GameplayServiceServer.isMorphPackExpired(_self: GameplayServiceServer, packNumber: number): boolean
+	local currentTime = os.time()
+	if packNumber == 1 then
+		return currentTime >= MORPH_PACK_TIME_LIMIT_1
+	elseif packNumber == 2 then
+		return currentTime >= MORPH_PACK_TIME_LIMIT_2
+	end
+	return true
+end
+
 function GameplayServiceServer.getPlayerJoinTime(_self: GameplayServiceServer, player: Player): number?
 	return playerJoinTimes[player]
 end
@@ -82,20 +104,76 @@ function GameplayServiceServer.requestGoldPackPurchase(self: GameplayServiceServ
 	Products.prompt(player, "BuyGoldPack")
 end
 
+function GameplayServiceServer.requestMorphPackPurchase(self: GameplayServiceServer, player: Player, packNumber: number): ()
+	-- Validate that the morph pack timer has NOT expired (can only buy while timer is active)
+	if self:isMorphPackExpired(packNumber) then
+		warn("Player " .. player.Name .. " tried to purchase MorphPack" .. packNumber .. " after timer expired")
+		return
+	end
+	
+	-- Cache which pack the player is purchasing so ProductFunctionsServer knows which morph to give
+	self.morphPackPurchaseCache[player] = packNumber
+	
+	-- Prompt the MorphPack purchase (both use same product ID 000010000)
+	Products.prompt(player, "MorphPack1") -- Both packs use same ID, handler will check cache
+end
+
+function GameplayServiceServer._setupMorphPackStand(self: GameplayServiceServer, standNumber: number): ()
+	local standName = "MorphPackStand" .. standNumber
+	local stand = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("Spawn")
+		and workspace.Map.Spawn:FindFirstChild(standName)
+	
+	if not stand then
+		warn("MorphPackStand" .. standNumber .. " not found in workspace")
+		return
+	end
+	
+	local packPart = stand:FindFirstChild("PackPart") :: BasePart?
+	if not packPart then
+		warn("PackPart not found in " .. standName)
+		return
+	end
+	
+	-- Setup touched event for the pack part with debouncing
+	packPart.Touched:Connect(function(hit: BasePart)
+		local player = Players:GetPlayerFromCharacter(hit.Parent)
+		if player then
+			-- Check debounce
+			local currentTime = os.time()
+			local lastTouch = touchDebounce[player]
+			if lastTouch and (currentTime - lastTouch) < TOUCH_DEBOUNCE_TIME then
+				return
+			end
+			touchDebounce[player] = currentTime
+			
+			self:requestMorphPackPurchase(player, standNumber)
+		end
+	end)
+end
+
 function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: Player): ()
 	local joinTime = os.time()
 	playerJoinTimes[player] = joinTime
 	
 	-- Send join time and timer duration to client so it can initialize its timer
 	self.networker:fire(player, "initTimer", joinTime, TIMER_DURATION)
+	
+	-- Send MorphPack time limits to client
+	self.networker:fire(player, "initMorphPackTimers", MORPH_PACK_TIME_LIMIT_1, MORPH_PACK_TIME_LIMIT_2)
 end
 
 function GameplayServiceServer.init(self: GameplayServiceServer): ()
 	self.networker = Networker.server.new("Gameplay", self, {
 		self.requestGoldPackPurchase,
+		self.requestMorphPackPurchase,
 	})
 	
 	self:updateProgressBar()
+	
+	-- Setup MorphPack stands
+	self:_setupMorphPackStand(1)
+	self:_setupMorphPackStand(2)
 	
 	-- Initialize timer for existing players
 	for _, player in Players:GetPlayers() do
@@ -110,11 +188,14 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 	-- Cleanup on player leave
 	Players.PlayerRemoving:Connect(function(player: Player)
 		playerJoinTimes[player] = nil
+		self.morphPackPurchaseCache[player] = nil
+		touchDebounce[player] = nil
 	end)
 end
 
 type GameplayServiceServer = typeof(GameplayServiceServer) & {
 	networker: Networker.Server,
+	morphPackPurchaseCache: { [Player]: number },
 }
 
 return GameplayServiceServer :: GameplayServiceServer

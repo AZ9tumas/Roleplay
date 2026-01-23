@@ -12,6 +12,14 @@ local remainingTime: number = 0
 local timeLabel: TextLabel? = nil
 local promptEnabled: boolean = false
 
+-- MorphPack state
+local morphPackTimeLimit1: number = 0
+local morphPackTimeLimit2: number = 0
+local morphPackTimerLabel1: TextLabel? = nil
+local morphPackTimerLabel2: TextLabel? = nil
+local morphPack1Deleted: boolean = false
+local morphPack2Deleted: boolean = false
+
 local function getTimeText(seconds: number): string
 	local hours = math.floor(seconds / 3600)
 	local minutes = math.floor((seconds % 3600) / 60)
@@ -46,6 +54,78 @@ function GameplayServiceClient._enablePromptAndConnect(self: GameplayServiceClie
 	end)
 end
 
+function GameplayServiceClient._getMorphPackTimerLabel(standNumber: number): TextLabel?
+	local standName = "MorphPackStand" .. standNumber
+	local stand = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("Spawn")
+		and workspace.Map.Spawn:FindFirstChild(standName)
+	
+	if not stand then
+		return nil
+	end
+	
+	local cube2 = stand:FindFirstChild("Cube2")
+	if not cube2 then
+		return nil
+	end
+	
+	local timerPart = cube2:FindFirstChild("TimerPart")
+	if not timerPart then
+		return nil
+	end
+	
+	local face = timerPart:FindFirstChild("Face")
+	if not face then
+		return nil
+	end
+	
+	return face:FindFirstChild("Timer") :: TextLabel?
+end
+
+function GameplayServiceClient._deleteMorphPackModel(standNumber: number): ()
+	local standName = "MorphPackStand" .. standNumber
+	local stand = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("Spawn")
+		and workspace.Map.Spawn:FindFirstChild(standName)
+	
+	if stand then
+		stand:Destroy()
+	end
+end
+
+function GameplayServiceClient.initMorphPackTimers(self: GameplayServiceClient, timeLimit1: number, timeLimit2: number): ()
+	morphPackTimeLimit1 = timeLimit1
+	morphPackTimeLimit2 = timeLimit2
+	
+	-- Get timer labels
+	morphPackTimerLabel1 = self._getMorphPackTimerLabel(1)
+	morphPackTimerLabel2 = self._getMorphPackTimerLabel(2)
+	
+	local currentTime = os.time()
+	
+	-- Check if timers already expired
+	if currentTime >= morphPackTimeLimit1 and not morphPack1Deleted then
+		self._deleteMorphPackModel(1)
+		morphPack1Deleted = true
+	end
+	
+	if currentTime >= morphPackTimeLimit2 and not morphPack2Deleted then
+		self._deleteMorphPackModel(2)
+		morphPack2Deleted = true
+	end
+	
+	-- Initial timer text update
+	if morphPackTimerLabel1 and not morphPack1Deleted then
+		local remaining1 = math.max(morphPackTimeLimit1 - currentTime, 0)
+		morphPackTimerLabel1.Text = getTimeText(remaining1)
+	end
+	
+	if morphPackTimerLabel2 and not morphPack2Deleted then
+		local remaining2 = math.max(morphPackTimeLimit2 - currentTime, 0)
+		morphPackTimerLabel2.Text = getTimeText(remaining2)
+	end
+end
+
 function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoinTime: number, serverTimerDuration: number): ()
 	-- Set the timer duration from server
 	timerDuration = serverTimerDuration
@@ -77,6 +157,9 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 	print("Connection setup")
 
 	RunService.Heartbeat:Connect(function(dt: number)
+		local currentTimeNow = os.time()
+		
+		-- GoldPack timer (per-player countdown)
 		if remainingTime > 0 then
 			remainingTime = math.max(remainingTime - dt, 0)
 			if timeLabel then
@@ -86,6 +169,32 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 			-- Enable prompt when timer reaches 0
 			if remainingTime <= 0 and not promptEnabled then
 				self:_enablePromptAndConnect()
+			end
+		end
+		
+		-- MorphPack1 timer (global countdown to timestamp)
+		if not morphPack1Deleted and morphPackTimeLimit1 > 0 then
+			local remaining1 = math.max(morphPackTimeLimit1 - currentTimeNow, 0)
+			if morphPackTimerLabel1 then
+				morphPackTimerLabel1.Text = getTimeText(remaining1)
+			end
+			
+			if remaining1 <= 0 then
+				self._deleteMorphPackModel(1)
+				morphPack1Deleted = true
+			end
+		end
+		
+		-- MorphPack2 timer (global countdown to timestamp)
+		if not morphPack2Deleted and morphPackTimeLimit2 > 0 then
+			local remaining2 = math.max(morphPackTimeLimit2 - currentTimeNow, 0)
+			if morphPackTimerLabel2 then
+				morphPackTimerLabel2.Text = getTimeText(remaining2)
+			end
+			
+			if remaining2 <= 0 then
+				self._deleteMorphPackModel(2)
+				morphPack2Deleted = true
 			end
 		end
 	end)

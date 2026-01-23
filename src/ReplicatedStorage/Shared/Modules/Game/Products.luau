@@ -28,8 +28,8 @@ local ids: {
 	[string]: GamepassData,
 } = {
 	["MorphPack1"] = {
-		productId = 00001000,
-		type = "Gamepass",
+		productId = 000010000,
+		type = "DevProduct",
 		oneTime = true,
 	},
 	["LimitedMorphTest"] = {
