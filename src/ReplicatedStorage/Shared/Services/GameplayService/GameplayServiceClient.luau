@@ -19,6 +19,9 @@ local morphPackState: { [number]: {
 	deleted: boolean,
 } } = {}
 
+-- Track collected trophies to prevent duplicate prompts
+local collectedTrophies: { [string]: boolean } = {}
+
 local function getTimeText(seconds: number): string
 	local days = math.floor(seconds / 86400) -- 86400 seconds in a day
 	local hours = math.floor((seconds % 86400) / 3600)
@@ -189,8 +192,66 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 	end)
 end
 
+function GameplayServiceClient._setupTrophyPrompt(self: GameplayServiceClient, trophy: Model): ()
+	local trophyName = trophy.Name
+	
+	-- Find the Hitbox part
+	local hitbox = trophy:FindFirstChild("Hitbox") :: BasePart?
+	if not hitbox then
+		warn("Hitbox not found in trophy: " .. trophyName)
+		return
+	end
+	
+	-- Find the ProximityPrompt using FindFirstChildWhichIsA
+	local prompt = hitbox:FindFirstChildWhichIsA("ProximityPrompt") :: ProximityPrompt?
+	if not prompt then
+		warn("ProximityPrompt not found in Hitbox of trophy: " .. trophyName)
+		return
+	end
+	
+	-- Connect to the Triggered event
+	prompt.Triggered:Connect(function(_player: Player)
+		-- Prevent duplicate claims
+		if collectedTrophies[trophyName] then
+			return
+		end
+		collectedTrophies[trophyName] = true
+		
+		-- Send request to server to claim the trophy morph
+		self.networker:fire("claimTrophy", trophyName)
+	end)
+end
+
+function GameplayServiceClient._setupTrophies(self: GameplayServiceClient): ()
+	local trophiesFolder = workspace:FindFirstChild("Trophies")
+	if not trophiesFolder then
+		return
+	end
+	
+	-- Setup prompts for all existing trophies
+	for _, trophy in trophiesFolder:GetChildren() do
+		if trophy:IsA("Model") then
+			self:_setupTrophyPrompt(trophy)
+		end
+	end
+end
+
+function GameplayServiceClient.onTrophyClaimed(_self: GameplayServiceClient, trophyName: string): ()
+	-- Delete the trophy model on the client
+	local trophiesFolder = workspace:FindFirstChild("Trophies")
+	if trophiesFolder then
+		local trophy = trophiesFolder:FindFirstChild(trophyName)
+		if trophy then
+			trophy:Destroy()
+		end
+	end
+end
+
 function GameplayServiceClient.init(self: GameplayServiceClient): ()
 	self.networker = Networker.client.new("Gameplay", self)
+	
+	-- Setup trophy proximity prompts
+	self:_setupTrophies()
 end
 
 type GameplayServiceClient = typeof(GameplayServiceClient) & {

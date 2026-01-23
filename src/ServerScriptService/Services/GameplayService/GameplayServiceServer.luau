@@ -2,9 +2,19 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
+
+-- Lazy load MorphServiceServer to avoid circular dependency
+local MorphServiceServer = nil
+local function getMorphServiceServer()
+	if MorphServiceServer == nil then
+		MorphServiceServer = require(ServerScriptService.Services.MorphService.MorphServiceServer)
+	end
+	return MorphServiceServer
+end
 
 local goldPack: Folder = ServerStorage:WaitForChild("GoldPack")
 local TIMER_DURATION = goldPack:WaitForChild("Time").Value
@@ -19,6 +29,9 @@ local MORPH_PACK_TIME_LIMITS = {
 local GameplayServiceServer = {}
 
 local playerJoinTimes: { [Player]: number } = {}
+
+-- Track claimed trophies per player to prevent duplicates
+local claimedTrophies: { [Player]: { [string]: boolean } } = {}
 
 -- Debounce cache to prevent touch spam
 local touchDebounce: { [Player]: number } = {}
@@ -123,6 +136,42 @@ function GameplayServiceServer.requestMorphPack2Purchase(self: GameplayServiceSe
 	Products.prompt(player, "MorphPack2")
 end
 
+function GameplayServiceServer.claimTrophy(self: GameplayServiceServer, player: Player, trophyName: string): ()
+	-- Validate the trophy exists in workspace
+	local trophiesFolder = workspace:FindFirstChild("Trophies")
+	if not trophiesFolder then
+		warn("Trophies folder not found in workspace")
+		return
+	end
+	
+	local trophy = trophiesFolder:FindFirstChild(trophyName)
+	if not trophy then
+		warn("Trophy " .. trophyName .. " not found in workspace.Trophies")
+		return
+	end
+	
+	-- Check if player already claimed this trophy
+	if not claimedTrophies[player] then
+		claimedTrophies[player] = {}
+	end
+	
+	if claimedTrophies[player][trophyName] then
+		warn("Player " .. player.Name .. " already claimed trophy: " .. trophyName)
+		return
+	end
+	
+	-- Mark trophy as claimed for this player
+	claimedTrophies[player][trophyName] = true
+	
+	-- Give the morph to the player (trophy name = morph name)
+	-- Uses MorphServiceServer:addToData(player, morphName) to add to player's unlocked morphs
+	local morphService = getMorphServiceServer()
+	morphService:addToData(player, trophyName)
+	
+	-- Notify the client to delete the trophy
+	self.networker:fire(player, "onTrophyClaimed", trophyName)
+end
+
 function GameplayServiceServer._setupMorphPackStand(self: GameplayServiceServer, standNumber: number): ()
 	local standName = "MorphPackStand" .. standNumber
 	local stand = workspace:WaitForChild("Map")
@@ -178,6 +227,7 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 		self.requestGoldPackPurchase,
 		self.requestMorphPack1Purchase,
 		self.requestMorphPack2Purchase,
+		self.claimTrophy,
 	})
 	
 	self:updateProgressBar()
@@ -200,6 +250,7 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 	Players.PlayerRemoving:Connect(function(player: Player)
 		playerJoinTimes[player] = nil
 		touchDebounce[player] = nil
+		claimedTrophies[player] = nil
 	end)
 end
 
