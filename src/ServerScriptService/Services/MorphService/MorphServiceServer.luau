@@ -6,11 +6,21 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local DataService = require(ReplicatedStorage.Packages.DataService).server
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local MorphServiceUtil = require(ReplicatedStorage.Shared.Services.MorphService.MorphServiceUtil)
+
+-- Lazy require to avoid circular dependency (NotificationService may not be initialized yet)
+local NotificationServiceServer = nil
+local function getNotificationService()
+	if NotificationServiceServer == nil then
+		NotificationServiceServer = require(ServerScriptService.Services.NotificationService.NotificationServiceServer)
+	end
+	return NotificationServiceServer
+end
 
 local MORPH_UNLOCKER_TAG = "MorphUnlocker"
 local SOLD_MORPH_DATASTORE_NAME = "SoldMorphDataTest7"
@@ -151,7 +161,15 @@ function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player,
 
 	local data = DataService:get(player, { "unlockedMorph" })
 	local foundInData = data[morph]
+	
+	-- Get notification service
+	local notificationService = getNotificationService()
+	
 	if foundInData then
+		-- Player already owns this morph
+		if notificationService then
+			notificationService:SendNotification(player, "You already own this")
+		end
 		return
 	end
 
@@ -160,6 +178,11 @@ function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player,
 	} :: MORPH_DATA_TEMPLATE
 
 	DataService:set(player, { "unlockedMorph", morph }, morphTemplate)
+	
+	-- Send congratulations notification for new morph
+	if notificationService then
+		notificationService:SendNotification(player, "Congratz. You got " .. morph)
+	end
 end
 
 function MorphServiceServer.buyLimitedAmountMorph(self, morph, receiptInfo, player)
