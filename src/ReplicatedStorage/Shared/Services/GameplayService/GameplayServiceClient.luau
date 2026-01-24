@@ -11,6 +11,7 @@ local timerDuration: number = 0
 local remainingTime: number = 0
 local timeLabel: TextLabel? = nil
 local promptEnabled: boolean = false
+local goldPackClaimed: boolean = false
 
 -- MorphPack state - table-based for modularity
 local morphPackState: { [number]: {
@@ -21,6 +22,9 @@ local morphPackState: { [number]: {
 
 -- Track collected trophies to prevent duplicate prompts
 local collectedTrophies: { [string]: boolean } = {}
+
+-- Track player's owned morphs (for trophy cleanup)
+local ownedMorphs: { [string]: any } = {}
 
 local function getTimeText(seconds: number): string
 	local days = math.floor(seconds / 86400) -- 86400 seconds in a day
@@ -34,6 +38,13 @@ local function getTimeText(seconds: number): string
 	else
 		return string.format("%02d:%02d:%02d", hours, minutes, secs)
 	end
+end
+
+-- Called when gold pack is claimed (either by timer or purchase)
+function GameplayServiceClient.onGoldPackClaimed(_self: GameplayServiceClient): ()
+	goldPackClaimed = true
+	-- Wall lifted - player can pass through now
+	-- The proximity prompt connection already saved the data on the server
 end
 
 function GameplayServiceClient._enablePromptAndConnect(self: GameplayServiceClient): ()
@@ -58,7 +69,45 @@ function GameplayServiceClient._enablePromptAndConnect(self: GameplayServiceClie
 	
 	-- Connect to the triggered event only after timer expires for security
 	prompt.Triggered:Connect(function(_player: Player)
-		-- Send request to server to validate and prompt purchase
+		-- Send request to server to claim the gold pack (saves data)
+		self.networker:fire("claimGoldPack")
+	end)
+end
+
+-- Setup wall touch event for purchase prompt while timer is ongoing
+function GameplayServiceClient._setupWallTouchPurchase(self: GameplayServiceClient): ()
+	local mainWall = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("GoalPack")
+		and workspace.Map.GoalPack:WaitForChild("MainWall")
+	
+	if not mainWall then
+		return
+	end
+	
+	local player = Players.LocalPlayer
+	local lastTouchTime = 0
+	local TOUCH_DEBOUNCE = 2 -- seconds
+	
+	mainWall.Touched:Connect(function(hit: BasePart)
+		-- Check if it's the local player touching
+		local character = player.Character
+		if not character or not hit:IsDescendantOf(character) then
+			return
+		end
+		
+		-- Only prompt purchase if timer is still ongoing
+		if remainingTime <= 0 or goldPackClaimed then
+			return
+		end
+		
+		-- Debounce to prevent spam
+		local currentTime = os.time()
+		if currentTime - lastTouchTime < TOUCH_DEBOUNCE then
+			return
+		end
+		lastTouchTime = currentTime
+		
+		-- Request purchase to skip the timer
 		self.networker:fire("requestGoldPackPurchase")
 	end)
 end
@@ -128,9 +177,10 @@ function GameplayServiceClient.initMorphPackTimers(self: GameplayServiceClient, 
 	end
 end
 
-function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoinTime: number, serverTimerDuration: number): ()
+function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoinTime: number, serverTimerDuration: number, serverGoldPackClaimed: boolean): ()
 	-- Set the timer duration from server
 	timerDuration = serverTimerDuration
+	goldPackClaimed = serverGoldPackClaimed or false
 	
 	-- Calculate remaining time based on when player joined
 	local currentTime = os.time()
@@ -149,7 +199,19 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 	end
 
 	timeLabel = mapGoldPack :: TextLabel
+	
+	-- If already claimed, skip timer display and prompt setup
+	if goldPackClaimed then
+		timeLabel.Text = "00:00:00"
+		remainingTime = 0
+		promptEnabled = true -- Don't need to enable prompt, already claimed
+		return
+	end
+	
 	timeLabel.Text = getTimeText(remainingTime)
+	
+	-- Setup wall touch event for purchase prompt while timer is ongoing
+	self:_setupWallTouchPurchase()
 	
 	-- If timer already expired when player joins, enable prompt immediately
 	if remainingTime <= 0 and not promptEnabled then
@@ -228,16 +290,34 @@ function GameplayServiceClient._setupTrophies(self: GameplayServiceClient): ()
 		return
 	end
 	
-	-- Setup prompts for all existing trophies
+	-- Setup prompts for all existing trophies (except those for morphs player already owns)
 	for _, trophy in trophiesFolder:GetChildren() do
 		if trophy:IsA("Model") then
-			self:_setupTrophyPrompt(trophy)
+			local morphName = trophy.Name
+			
+			-- If player already owns this morph, delete the trophy immediately
+			if ownedMorphs[morphName] then
+				trophy:Destroy()
+			else
+				self:_setupTrophyPrompt(trophy)
+			end
 		end
 	end
 end
 
+-- Called from server when player's owned morphs are received
+function GameplayServiceClient.initOwnedMorphs(self: GameplayServiceClient, serverOwnedMorphs: { [string]: any }): ()
+	ownedMorphs = serverOwnedMorphs or {}
+	
+	-- Now that we have the owned morphs, setup trophies (with cleanup)
+	self:_setupTrophies()
+end
+
 function GameplayServiceClient.onTrophyClaimed(_self: GameplayServiceClient, trophyName: string): ()
 	warn("trophy claimed: " .. trophyName)
+	-- Add to local owned morphs cache
+	ownedMorphs[trophyName] = { obtainTime = os.time() }
+	
 	-- Delete the trophy model on the client
 	local trophiesFolder = workspace:FindFirstChild("Trophies")
 	if trophiesFolder then
@@ -251,8 +331,8 @@ end
 function GameplayServiceClient.init(self: GameplayServiceClient): ()
 	self.networker = Networker.client.new("Gameplay", self)
 	
-	-- Setup trophy proximity prompts
-	self:_setupTrophies()
+	-- Trophy setup is now done in initOwnedMorphs after receiving player's owned morphs from server
+	-- This ensures we can delete trophies for morphs the player already owns
 end
 
 type GameplayServiceClient = typeof(GameplayServiceClient) & {

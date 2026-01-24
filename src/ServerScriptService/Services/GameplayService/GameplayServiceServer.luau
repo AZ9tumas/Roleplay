@@ -6,6 +6,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
+local DataService = require(ReplicatedStorage.Packages.DataService).server
 
 -- Lazy load MorphServiceServer to avoid circular dependency
 local MorphServiceServer = nil
@@ -29,6 +30,16 @@ local MORPH_PACK_TIME_LIMITS = {
 local GameplayServiceServer = {}
 
 local playerJoinTimes: { [Player]: number } = {}
+
+-- Track if player has already claimed gold pack (saved to data)
+local function hasPlayerClaimedGoldPack(player: Player): boolean
+	local goldPackClaimed = DataService:get(player, { "goldPackClaimed" })
+	return goldPackClaimed == true
+end
+
+local function setPlayerClaimedGoldPack(player: Player): ()
+	DataService:set(player, { "goldPackClaimed" }, true)
+end
 
 -- Track claimed trophies per player to prevent duplicates
 local claimedTrophies: { [Player]: { [string]: boolean } } = {}
@@ -103,10 +114,32 @@ function GameplayServiceServer.getPlayerJoinTime(_self: GameplayServiceServer, p
 	return playerJoinTimes[player]
 end
 
-function GameplayServiceServer.requestGoldPackPurchase(self: GameplayServiceServer, player: Player): ()
+-- Called when player triggers the proximity prompt after timer is up
+function GameplayServiceServer.claimGoldPack(self: GameplayServiceServer, player: Player): ()
 	-- Validate that the timer has expired for this player
 	if not self:isTimerExpired(player) then
-		warn("Player " .. player.Name .. " tried to purchase GoldPack before timer expired")
+		warn("Player " .. player.Name .. " tried to claim GoldPack before timer expired")
+		return
+	end
+	
+	-- Check if already claimed
+	if hasPlayerClaimedGoldPack(player) then
+		warn("Player " .. player.Name .. " already claimed GoldPack")
+		return
+	end
+	
+	-- Save that the player has claimed the gold pack
+	setPlayerClaimedGoldPack(player)
+	
+	-- Notify client that gold pack is claimed (wall lifted, saved)
+	self.networker:fire(player, "onGoldPackClaimed")
+end
+
+-- Called when player hits the wall while timer is still ongoing (prompts purchase to skip)
+function GameplayServiceServer.requestGoldPackPurchase(self: GameplayServiceServer, player: Player): ()
+	-- Validate that the timer has NOT expired (can only buy to skip while timer is active)
+	if self:isTimerExpired(player) then
+		warn("Player " .. player.Name .. " tried to purchase GoldPack after timer expired (use claim instead)")
 		return
 	end
 	
@@ -215,16 +248,24 @@ function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: 
 	local joinTime = os.time()
 	playerJoinTimes[player] = joinTime
 	
-	-- Send join time and timer duration to client so it can initialize its timer
-	self.networker:fire(player, "initTimer", joinTime, TIMER_DURATION)
+	-- Check if player has already claimed gold pack
+	local goldPackClaimed = hasPlayerClaimedGoldPack(player)
+	
+	-- Send join time, timer duration, and claimed status to client so it can initialize its timer
+	self.networker:fire(player, "initTimer", joinTime, TIMER_DURATION, goldPackClaimed)
 	
 	-- Send MorphPack time limits to client as a table
 	self.networker:fire(player, "initMorphPackTimers", MORPH_PACK_TIME_LIMITS)
+	
+	-- Send player's unlocked morphs for trophy cleanup on client
+	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+	self.networker:fire(player, "initOwnedMorphs", unlockedMorphs)
 end
 
 function GameplayServiceServer.init(self: GameplayServiceServer): ()
 	self.networker = Networker.server.new("Gameplay", self, {
 		self.requestGoldPackPurchase,
+		self.claimGoldPack,
 		self.requestMorphPack1Purchase,
 		self.requestMorphPack2Purchase,
 		self.claimTrophy,
