@@ -34,15 +34,16 @@ local playerJoinTimes: { [Player]: number } = {}
 -- Track if player has already claimed gold pack (saved to data)
 local function hasPlayerClaimedGoldPack(player: Player): boolean
 	-- Check if DataService is available before accessing
+	print(DataService, "status right now")
 	if DataService == nil then
-		return false
+		repeat
+			task.wait(1)
+		until DataService ~= nil
+		--return false
 	end
-	local success, goldPackClaimed = pcall(function()
-		return DataService:get(player, { "goldPackClaimed" })
-	end)
-	if not success then
-		return false
-	end
+	local success, goldPackClaimed = pcall(function() return DataService:get(player, { "goldPackClaimed" }) end)
+	if not success then return false end
+
 	return goldPackClaimed == true
 end
 

@@ -77,8 +77,8 @@ end
 -- Setup wall touch event for purchase prompt while timer is ongoing
 function GameplayServiceClient._setupWallTouchPurchase(self: GameplayServiceClient): ()
 	local mainWall = workspace:WaitForChild("Map")
-		and workspace.Map:WaitForChild("GoalPack")
-		and workspace.Map.GoalPack:WaitForChild("MainWall")
+		and workspace.Map:WaitForChild("GoldPack")
+		and workspace.Map.GoldPack:WaitForChild("MainWall")
 	
 	if not mainWall then
 		return
