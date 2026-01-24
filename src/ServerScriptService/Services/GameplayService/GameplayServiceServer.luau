@@ -33,12 +33,28 @@ local playerJoinTimes: { [Player]: number } = {}
 
 -- Track if player has already claimed gold pack (saved to data)
 local function hasPlayerClaimedGoldPack(player: Player): boolean
-	local goldPackClaimed = DataService:get(player, { "goldPackClaimed" })
+	-- Check if DataService is available before accessing
+	if DataService == nil then
+		return false
+	end
+	local success, goldPackClaimed = pcall(function()
+		return DataService:get(player, { "goldPackClaimed" })
+	end)
+	if not success then
+		return false
+	end
 	return goldPackClaimed == true
 end
 
 local function setPlayerClaimedGoldPack(player: Player): ()
-	DataService:set(player, { "goldPackClaimed" }, true)
+	-- Check if DataService is available before setting
+	if DataService == nil then
+		warn("DataService not available, cannot save goldPackClaimed")
+		return
+	end
+	pcall(function()
+		DataService:set(player, { "goldPackClaimed" }, true)
+	end)
 end
 
 -- Track claimed trophies per player to prevent duplicates
