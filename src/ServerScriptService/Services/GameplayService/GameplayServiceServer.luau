@@ -267,15 +267,15 @@ end
 
 -- Give coil tool to player
 function GameplayServiceServer.giveCoilToPlayer(_self: GameplayServiceServer, player: Player, coilName: string): boolean
-	local assets = ServerStorage:FindFirstChild("Assets")
-	if not assets then
-		warn("Assets folder not found in ServerStorage")
+	local gears = ServerStorage:FindFirstChild("Gears")
+	if not gears then
+		warn("Gears folder not found in ServerStorage")
 		return false
 	end
 	
-	local coilTool = assets:FindFirstChild(coilName)
+	local coilTool = gears:FindFirstChild(coilName)
 	if not coilTool or not coilTool:IsA("Tool") then
-		warn("Coil tool " .. coilName .. " not found in ServerStorage.Assets")
+		warn("Coil tool " .. coilName .. " not found in ServerStorage.Gears")
 		return false
 	end
 	
