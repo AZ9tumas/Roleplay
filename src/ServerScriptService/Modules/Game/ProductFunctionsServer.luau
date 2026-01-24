@@ -10,6 +10,17 @@ local GOLD_PACK_REWARD_MODEL = "AbbySaja"
 local MORPH_PACK_1_REWARD = "AbbySaja"
 local MORPH_PACK_2_REWARD = "LimitedTimeMorphTest"
 
+-- Helper function to handle coil gamepass purchase (used for both dev product and gamepass callbacks)
+local function handleCoilPurchase(player: Player): boolean
+	local coilPurchaseCache = GameplayServiceServer:getCoilPurchaseCache()
+	local coilName = coilPurchaseCache[player]
+	if coilName then
+		coilPurchaseCache[player] = nil
+		return GameplayServiceServer:giveCoilToPlayer(player, coilName)
+	end
+	return false
+end
+
 return {
 	[Products.getProductId("MorphPack1")] = function(player: Player)
 		-- Give the player the MorphPack1 reward morph
@@ -68,19 +79,9 @@ return {
 	end,
 
 	[Products.getProductId("BuyGoldPack")] = function(player: Player)
-		-- Check if this is a coil purchase (using the cache)
-		local coilPurchaseCache = GameplayServiceServer:getCoilPurchaseCache()
-		local coilName = coilPurchaseCache[player]
-		if coilName then
-			-- This is a coil purchase
-			coilPurchaseCache[player] = nil
-			
-			local success = GameplayServiceServer:giveCoilToPlayer(player, coilName)
-			if success then
-				return Enum.ProductPurchaseDecision.PurchaseGranted
-			else
-				return Enum.ProductPurchaseDecision.NotProcessedYet
-			end
+		-- Check if this is a coil gamepass purchase (using the cache)
+		if handleCoilPurchase(player) then
+			return Enum.ProductPurchaseDecision.PurchaseGranted
 		end
 		
 		-- Otherwise, this is a Gold Pack purchase - give the reward morph

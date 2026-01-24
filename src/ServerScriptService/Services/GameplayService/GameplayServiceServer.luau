@@ -1,5 +1,6 @@
 --!strict
 
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -250,6 +251,20 @@ function GameplayServiceServer._playerHasTool(_self: GameplayServiceServer, play
 	return false
 end
 
+-- Check if player owns a gamepass
+function GameplayServiceServer._playerOwnsGamepass(_self: GameplayServiceServer, player: Player, gamepassId: number): boolean
+	local success, ownsGamepass = pcall(function()
+		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, gamepassId)
+	end)
+	
+	if success then
+		return ownsGamepass
+	else
+		warn("Error checking gamepass ownership:", ownsGamepass)
+		return false
+	end
+end
+
 -- Give coil tool to player
 function GameplayServiceServer.giveCoilToPlayer(_self: GameplayServiceServer, player: Player, coilName: string): boolean
 	local assets = ServerStorage:FindFirstChild("Assets")
@@ -275,36 +290,76 @@ function GameplayServiceServer.giveCoilToPlayer(_self: GameplayServiceServer, pl
 	return true
 end
 
--- Request coil purchase functions
+-- Request coil purchase functions (gamepass-based)
 function GameplayServiceServer.requestBuySuperCoil(self: GameplayServiceServer, player: Player): ()
-	if self:_playerHasTool(player, "SuperCoil") then
+	local coilName = "SuperCoil"
+	if self:_playerHasTool(player, coilName) then
 		return
 	end
-	coilPurchaseCache[player] = "SuperCoil"
+	
+	-- Check if player owns the gamepass, if yes give coil directly
+	local gamepassId = Products.getProductId("BuySuperCoil")
+	if self:_playerOwnsGamepass(player, gamepassId) then
+		self:giveCoilToPlayer(player, coilName)
+		return
+	end
+	
+	-- Player doesn't own gamepass, prompt purchase
+	coilPurchaseCache[player] = coilName
 	Products.prompt(player, "BuySuperCoil")
 end
 
 function GameplayServiceServer.requestBuySpeedCoil(self: GameplayServiceServer, player: Player): ()
-	if self:_playerHasTool(player, "SpeedCoil") then
+	local coilName = "SpeedCoil"
+	if self:_playerHasTool(player, coilName) then
 		return
 	end
-	coilPurchaseCache[player] = "SpeedCoil"
+	
+	-- Check if player owns the gamepass, if yes give coil directly
+	local gamepassId = Products.getProductId("BuySpeedCoil")
+	if self:_playerOwnsGamepass(player, gamepassId) then
+		self:giveCoilToPlayer(player, coilName)
+		return
+	end
+	
+	-- Player doesn't own gamepass, prompt purchase
+	coilPurchaseCache[player] = coilName
 	Products.prompt(player, "BuySpeedCoil")
 end
 
 function GameplayServiceServer.requestBuyRainbowCoil(self: GameplayServiceServer, player: Player): ()
-	if self:_playerHasTool(player, "RainbowCoil") then
+	local coilName = "RainbowCoil"
+	if self:_playerHasTool(player, coilName) then
 		return
 	end
-	coilPurchaseCache[player] = "RainbowCoil"
+	
+	-- Check if player owns the gamepass, if yes give coil directly
+	local gamepassId = Products.getProductId("BuyRainbowCoil")
+	if self:_playerOwnsGamepass(player, gamepassId) then
+		self:giveCoilToPlayer(player, coilName)
+		return
+	end
+	
+	-- Player doesn't own gamepass, prompt purchase
+	coilPurchaseCache[player] = coilName
 	Products.prompt(player, "BuyRainbowCoil")
 end
 
 function GameplayServiceServer.requestBuyGravityCoil(self: GameplayServiceServer, player: Player): ()
-	if self:_playerHasTool(player, "GravityCoil") then
+	local coilName = "GravityCoil"
+	if self:_playerHasTool(player, coilName) then
 		return
 	end
-	coilPurchaseCache[player] = "GravityCoil"
+	
+	-- Check if player owns the gamepass, if yes give coil directly
+	local gamepassId = Products.getProductId("BuyGravityCoil")
+	if self:_playerOwnsGamepass(player, gamepassId) then
+		self:giveCoilToPlayer(player, coilName)
+		return
+	end
+	
+	-- Player doesn't own gamepass, prompt purchase
+	coilPurchaseCache[player] = coilName
 	Products.prompt(player, "BuyGravityCoil")
 end
 

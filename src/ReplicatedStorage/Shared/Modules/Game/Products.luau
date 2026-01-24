@@ -64,23 +64,19 @@ local ids: {
 	
 	["BuySuperCoil"] = {
 		productId = 000010000,
-		type = "DevProduct",
-		oneTime = true,
+		type = "Gamepass",
 	},
 	["BuySpeedCoil"] = {
 		productId = 000010000,
-		type = "DevProduct",
-		oneTime = true,
+		type = "Gamepass",
 	},
 	["BuyRainbowCoil"] = {
 		productId = 000010000,
-		type = "DevProduct",
-		oneTime = true,
+		type = "Gamepass",
 	},
 	["BuyGravityCoil"] = {
 		productId = 000010000,
-		type = "DevProduct",
-		oneTime = true,
+		type = "Gamepass",
 	},
 }
 
