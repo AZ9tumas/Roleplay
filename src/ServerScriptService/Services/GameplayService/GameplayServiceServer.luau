@@ -28,6 +28,17 @@ local MORPH_PACK_TIME_LIMITS = {
 	[2] = morphPackFolder:WaitForChild("TimeLimit2").Value,
 }
 
+-- Coil stand configuration
+local COIL_STANDS = {
+	["PurpleStand"] = { coilName = "SuperCoil", purchaseName = "BuySuperCoil" },
+	["RedStand"] = { coilName = "SpeedCoil", purchaseName = "BuySpeedCoil" },
+	["RainbowStand"] = { coilName = "RainbowCoil", purchaseName = "BuyRainbowCoil" },
+	["BlueStand"] = { coilName = "GravityCoil", purchaseName = "BuyGravityCoil" },
+}
+
+-- Cache which coil a player is purchasing (for product callback)
+local coilPurchaseCache: { [Player]: string } = {}
+
 local GameplayServiceServer = {}
 
 local playerJoinTimes: { [Player]: number } = {}
@@ -225,6 +236,83 @@ function GameplayServiceServer.requestMorphPack2Purchase(self: GameplayServiceSe
 	Products.prompt(player, "MorphPack2")
 end
 
+-- Check if player already has a tool in their backpack
+function GameplayServiceServer._playerHasTool(_self: GameplayServiceServer, player: Player, toolName: string): boolean
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack and backpack:FindFirstChild(toolName) then
+		return true
+	end
+	-- Also check if player currently has the tool equipped (in character)
+	local character = player.Character
+	if character and character:FindFirstChild(toolName) then
+		return true
+	end
+	return false
+end
+
+-- Give coil tool to player
+function GameplayServiceServer.giveCoilToPlayer(_self: GameplayServiceServer, player: Player, coilName: string): boolean
+	local assets = ServerStorage:FindFirstChild("Assets")
+	if not assets then
+		warn("Assets folder not found in ServerStorage")
+		return false
+	end
+	
+	local coilTool = assets:FindFirstChild(coilName)
+	if not coilTool or not coilTool:IsA("Tool") then
+		warn("Coil tool " .. coilName .. " not found in ServerStorage.Assets")
+		return false
+	end
+	
+	local backpack = player:FindFirstChild("Backpack")
+	if not backpack then
+		warn("Player " .. player.Name .. " has no Backpack")
+		return false
+	end
+	
+	local clonedTool = coilTool:Clone()
+	clonedTool.Parent = backpack
+	return true
+end
+
+-- Request coil purchase functions
+function GameplayServiceServer.requestBuySuperCoil(self: GameplayServiceServer, player: Player): ()
+	if self:_playerHasTool(player, "SuperCoil") then
+		return
+	end
+	coilPurchaseCache[player] = "SuperCoil"
+	Products.prompt(player, "BuySuperCoil")
+end
+
+function GameplayServiceServer.requestBuySpeedCoil(self: GameplayServiceServer, player: Player): ()
+	if self:_playerHasTool(player, "SpeedCoil") then
+		return
+	end
+	coilPurchaseCache[player] = "SpeedCoil"
+	Products.prompt(player, "BuySpeedCoil")
+end
+
+function GameplayServiceServer.requestBuyRainbowCoil(self: GameplayServiceServer, player: Player): ()
+	if self:_playerHasTool(player, "RainbowCoil") then
+		return
+	end
+	coilPurchaseCache[player] = "RainbowCoil"
+	Products.prompt(player, "BuyRainbowCoil")
+end
+
+function GameplayServiceServer.requestBuyGravityCoil(self: GameplayServiceServer, player: Player): ()
+	if self:_playerHasTool(player, "GravityCoil") then
+		return
+	end
+	coilPurchaseCache[player] = "GravityCoil"
+	Products.prompt(player, "BuyGravityCoil")
+end
+
+-- Getter for coil purchase cache (used by ProductFunctionsServer)
+function GameplayServiceServer.getCoilPurchaseCache(_self: GameplayServiceServer): { [Player]: string }
+	return coilPurchaseCache
+end
+
 function GameplayServiceServer.claimTrophy(self: GameplayServiceServer, player: Player, trophyName: string): ()
 	-- Validate the trophy exists in workspace
 	local trophiesFolder = workspace:FindFirstChild("Trophies")
@@ -300,6 +388,54 @@ function GameplayServiceServer._setupMorphPackStand(self: GameplayServiceServer,
 	end)
 end
 
+function GameplayServiceServer._setupCoilStand(self: GameplayServiceServer, standName: string): ()
+	local standConfig = COIL_STANDS[standName]
+	if not standConfig then
+		warn("Unknown coil stand: " .. standName)
+		return
+	end
+	
+	local stand = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("Spawn")
+		and workspace.Map.Spawn:FindFirstChild(standName)
+	
+	if not stand then
+		warn("Coil stand " .. standName .. " not found in workspace.Map.Spawn")
+		return
+	end
+	
+	local packPart = stand:FindFirstChild("PackPart") :: BasePart?
+	if not packPart then
+		warn("PackPart not found in " .. standName)
+		return
+	end
+	
+	-- Setup touched event for the coil stand pack part with debouncing
+	packPart.Touched:Connect(function(hit: BasePart)
+		local player = Players:GetPlayerFromCharacter(hit.Parent)
+		if player then
+			-- Check debounce
+			local currentTime = os.time()
+			local lastTouch = touchDebounce[player]
+			if lastTouch and (currentTime - lastTouch) < TOUCH_DEBOUNCE_TIME then
+				return
+			end
+			touchDebounce[player] = currentTime
+			
+			-- Call the appropriate coil purchase function based on stand
+			if standName == "PurpleStand" then
+				self:requestBuySuperCoil(player)
+			elseif standName == "RedStand" then
+				self:requestBuySpeedCoil(player)
+			elseif standName == "RainbowStand" then
+				self:requestBuyRainbowCoil(player)
+			elseif standName == "BlueStand" then
+				self:requestBuyGravityCoil(player)
+			end
+		end
+	end)
+end
+
 function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: Player): ()
 	local joinTime = os.time()
 	playerJoinTimes[player] = joinTime
@@ -341,6 +477,11 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 	self:_setupMorphPackStand(1)
 	self:_setupMorphPackStand(2)
 	
+	-- Setup Coil stands
+	for standName, _ in COIL_STANDS do
+		self:_setupCoilStand(standName)
+	end
+	
 	-- Initialize timer for existing players
 	for _, player in Players:GetPlayers() do
 		self:_initPlayer(player)
@@ -356,6 +497,7 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 		playerJoinTimes[player] = nil
 		touchDebounce[player] = nil
 		claimedTrophies[player] = nil
+		coilPurchaseCache[player] = nil
 	end)
 end
 

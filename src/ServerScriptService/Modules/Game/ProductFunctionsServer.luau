@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
 local MorphServiceServer = require(ServerScriptService.Services.MorphService.MorphServiceServer)
+local GameplayServiceServer = require(ServerScriptService.Services.GameplayService.GameplayServiceServer)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 
 -- Configuration for pack rewards - easily changeable for future updates
@@ -67,7 +68,22 @@ return {
 	end,
 
 	[Products.getProductId("BuyGoldPack")] = function(player: Player)
-		-- Give the player the reward model (currently AbbySaja)
+		-- Check if this is a coil purchase (using the cache)
+		local coilPurchaseCache = GameplayServiceServer:getCoilPurchaseCache()
+		local coilName = coilPurchaseCache[player]
+		if coilName then
+			-- This is a coil purchase
+			coilPurchaseCache[player] = nil
+			
+			local success = GameplayServiceServer:giveCoilToPlayer(player, coilName)
+			if success then
+				return Enum.ProductPurchaseDecision.PurchaseGranted
+			else
+				return Enum.ProductPurchaseDecision.NotProcessedYet
+			end
+		end
+		
+		-- Otherwise, this is a Gold Pack purchase - give the reward morph
 		local rewardModel = ServerStorage:FindFirstChild("Morphs") and ServerStorage.Morphs:FindFirstChild(GOLD_PACK_REWARD_MODEL)
 		
 		if not rewardModel then

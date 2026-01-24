@@ -61,6 +61,27 @@ local ids: {
 		type = "DevProduct",
 		oneTime = false,
 	},
+	
+	["BuySuperCoil"] = {
+		productId = 000010000,
+		type = "DevProduct",
+		oneTime = true,
+	},
+	["BuySpeedCoil"] = {
+		productId = 000010000,
+		type = "DevProduct",
+		oneTime = true,
+	},
+	["BuyRainbowCoil"] = {
+		productId = 000010000,
+		type = "DevProduct",
+		oneTime = true,
+	},
+	["BuyGravityCoil"] = {
+		productId = 000010000,
+		type = "DevProduct",
+		oneTime = true,
+	},
 }
 
 local function _getDevProducts(player)
