@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local ServerStorage = game:GetService("ServerStorage")
+local HttpService = game:GetService("HttpService")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local DataService = require(ReplicatedStorage.Packages.DataService).server
@@ -30,6 +31,36 @@ local MORPH_PACK_TIME_LIMITS = {
 local GameplayServiceServer = {}
 
 local playerJoinTimes: { [Player]: number } = {}
+
+-- Cached likes count from API
+local cachedLikesCount: number = 0
+local lastLikesFetch: number = 0
+local LIKES_UPDATE_INTERVAL = 30 * 60 -- 30 minutes in seconds
+
+-- Fetch likes from Roblox API using allorigins proxy
+local function getLikes(): number
+	local success, result = pcall(function()
+		local url = "https://api.allorigins.win/get?url=" .. HttpService:UrlEncode("https://games.roblox.com/v1/games/votes?universeIds=" .. game.GameId)
+		local req = HttpService:JSONDecode(HttpService:GetAsync(url))
+		local res = HttpService:JSONDecode(req.contents)
+		return res.data[1].upVotes
+	end)
+	
+	if success and result then
+		return result
+	else
+		warn("Failed to fetch likes from API:", result)
+		-- Fall back to ServerStorage value
+		local goalStats = ServerStorage:FindFirstChild("GoalStats")
+		if goalStats then
+			local accomplished = goalStats:FindFirstChild("Accomplished") :: IntValue?
+			if accomplished then
+				return accomplished.Value
+			end
+		end
+		return 0
+	end
+end
 
 -- Track if player has already claimed gold pack (saved to data)
 local function hasPlayerClaimedGoldPack(player: Player): boolean
@@ -72,13 +103,21 @@ function GameplayServiceServer.updateProgressBar(_self: GameplayServiceServer): 
 		return
 	end
 
-	local accomplished = goalStats:FindFirstChild("Accomplished") :: IntValue?
 	local targetGoal = goalStats:FindFirstChild("TargetGoal") :: IntValue?
 
-	if not accomplished or not targetGoal then
-		warn("Accomplished or TargetGoal IntValue not found in GoalStats")
+	if not targetGoal then
+		warn("TargetGoal IntValue not found in GoalStats")
 		return
 	end
+
+	-- Fetch likes from API if cache expired or not yet fetched
+	local currentTime = os.time()
+	if currentTime - lastLikesFetch >= LIKES_UPDATE_INTERVAL or cachedLikesCount == 0 then
+		cachedLikesCount = getLikes()
+		lastLikesFetch = currentTime
+	end
+	
+	local accomplishedValue = cachedLikesCount
 
 	local mainBar = workspace:WaitForChild("Map")
 		and workspace.Map:WaitForChild("Spawn")
@@ -99,13 +138,13 @@ function GameplayServiceServer.updateProgressBar(_self: GameplayServiceServer): 
 
 	local percentage = 0
 	if targetGoal.Value > 0 then
-		percentage = math.min(accomplished.Value / targetGoal.Value, 1)
+		percentage = math.min(accomplishedValue / targetGoal.Value, 1)
 	end
 
 	local oldSize = mainBar.Size
 	mainBar.Size = UDim2.new(oldSize.X.Scale, oldSize.X.Offset, percentage, oldSize.Y.Offset)
 
-	progressValue.Text = accomplished.Value .. "/" .. targetGoal.Value
+	progressValue.Text = accomplishedValue .. "/" .. targetGoal.Value
 end
 
 function GameplayServiceServer.isTimerExpired(_self: GameplayServiceServer, player: Player): boolean
@@ -289,6 +328,14 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 	})
 	
 	self:updateProgressBar()
+	
+	-- Start periodic update of progress bar (every 30 minutes)
+	task.spawn(function()
+		while true do
+			task.wait(LIKES_UPDATE_INTERVAL)
+			self:updateProgressBar()
+		end
+	end)
 	
 	-- Setup MorphPack stands
 	self:_setupMorphPackStand(1)
