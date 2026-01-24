@@ -168,6 +168,28 @@ local function setupLeftBar()
 			openMenu("Shop")
 		end))
 	end
+
+	-- an addition coin Shop Button and shop button will be found under the shopScreen, they
+	-- server the same purpose as the above buttons (coinShopButton and shopButton). These need
+	-- to be initialized as well. These buttons have the same names, but are located elsewhere.
+	if shopScreen then
+		local innerCoinShopButton = shopScreen:FindFirstChild("CoinShopButton", true) :: GuiButton?
+		local innerShopButton = coinShopScreen:FindFirstChild("ShopButton", true) :: GuiButton?
+		
+		if innerCoinShopButton then
+			setupButtonAnimation(innerCoinShopButton)
+			table.insert(connections, innerCoinShopButton.MouseButton1Click:Connect(function()
+				openMenu("CoinShop")
+			end))
+		end
+		
+		if innerShopButton then
+			setupButtonAnimation(innerShopButton)
+			table.insert(connections, innerShopButton.MouseButton1Click:Connect(function()
+				openMenu("Shop")
+			end))
+		end
+	end
 end
 
 -- Update a morph template's state (locked/unlocked, equipped/unequipped)
