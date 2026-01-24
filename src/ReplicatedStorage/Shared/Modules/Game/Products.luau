@@ -67,7 +67,7 @@ local ids: {
 		type = "Gamepass",
 	},
 	["BuySpeedCoil"] = {
-		productId = 000010000,
+		productId = 1686493633,
 		type = "Gamepass",
 	},
 	["BuyRainbowCoil"] = {
