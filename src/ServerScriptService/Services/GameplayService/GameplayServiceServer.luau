@@ -9,6 +9,7 @@ local HttpService = game:GetService("HttpService")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local DataService = require(ReplicatedStorage.Packages.DataService).server
+local PackRewards = require(ReplicatedStorage.Shared.Modules.Game.PackRewards)
 
 -- Lazy load MorphServiceServer to avoid circular dependency
 local MorphServiceServer = nil
@@ -58,8 +59,8 @@ local function getLikes(): number
 		return res.data[1].upVotes
 	end)
 	
-	if success and result then
-		return result
+	if success then
+		return result or 0
 	else
 		warn("Failed to fetch likes from API:", result)
 		-- Fall back to ServerStorage value
@@ -216,6 +217,20 @@ function GameplayServiceServer.requestGoldPackPurchase(self: GameplayServiceServ
 end
 
 function GameplayServiceServer.requestMorphPack1Purchase(self: GameplayServiceServer, player: Player): ()
+	-- Check if player already owns all rewards
+	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+	local allOwned = true
+	for _, morphName in ipairs(PackRewards.MorphPack1) do
+		if not unlockedMorphs[morphName] then
+			allOwned = false
+			break
+		end
+	end
+	
+	if allOwned then
+		return
+	end
+
 	-- Validate that the morph pack timer has NOT expired (can only buy while timer is active)
 	if self:isMorphPackExpired(1) then
 		warn("Player " .. player.Name .. " tried to purchase MorphPack1 after timer expired")
@@ -227,6 +242,20 @@ function GameplayServiceServer.requestMorphPack1Purchase(self: GameplayServiceSe
 end
 
 function GameplayServiceServer.requestMorphPack2Purchase(self: GameplayServiceServer, player: Player): ()
+	-- Check if player already owns all rewards
+	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+	local allOwned = true
+	for _, morphName in ipairs(PackRewards.MorphPack2) do
+		if not unlockedMorphs[morphName] then
+			allOwned = false
+			break
+		end
+	end
+	
+	if allOwned then
+		return
+	end
+
 	-- Validate that the morph pack timer has NOT expired (can only buy while timer is active)
 	if self:isMorphPackExpired(2) then
 		warn("Player " .. player.Name .. " tried to purchase MorphPack2 after timer expired")

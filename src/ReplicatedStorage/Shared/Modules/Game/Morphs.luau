@@ -56,6 +56,96 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Trapper",
 	},
+	["HungryWormDaddy"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Daddy",
+	},
+	["HungryWormDoey"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Doey",
+	},
+	["HungryWormHamoodHabibi"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Hamood Habibi",
+	},
+	["HungryWormCatNap"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Cat Nap",
+	},
+	["HungryWormDogDay"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Dog Day",
+	},
+	["HungryWormHuggy"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Huggy",
+	},
+	["HungryWormSmiley"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Smiley",
+	},
+	["HungryWormMommy"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Mommy",
+	},
+	["HungryWormPhase2"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Phase 2",
+	},
+	["HungryWormPhase3"] = {
+		animations = {
+			walk = "rbxassetid://107989195745842",
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Phase 3",
+	},
 }
 
 return Morphs :: { [string]: MorphData }

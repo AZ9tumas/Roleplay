@@ -18,3 +18,13 @@ MorphServiceServer:init(true)
 MonetizationServiceServer:init()
 CoinServiceServer:init()
 GameplayServiceServer:init()
+
+
+for i, v in pairs(workspace.Morphs.NewMorphs:GetChildren()) do
+	for _, v2 in pairs(v.Animate:GetChildren()) do
+		local animname = v2.Name
+		local id = v2:FindFirstChildWhichIsA("Animation").AnimationId
+		local morphName = v.Name
+		print(morphName, animname, id)
+	end
+end

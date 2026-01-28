@@ -40,7 +40,7 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 		return
 	end
 
-	local morphModel = ServerStorage.Morphs:FindFirstChild(morph)
+	local morphModel = ServerStorage.Assets.Morphs:FindFirstChild(morph)
 	if not morphModel then
 		return
 	end
@@ -61,6 +61,13 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 
 	--> Character Setup
 	local newCharacter = morphModel:Clone()
+	
+	-- Apply strict tag for client detection
+	CollectionService:AddTag(newCharacter, "Morph")
+	CollectionService:AddTag(newCharacter, "MorphModel")
+	
+	newCharacter:SetAttribute("MorphName", morph)
+
 	local humanoidRootPart = newCharacter.PrimaryPart :: BasePart
 	local humanoid = newCharacter:FindFirstChild("Humanoid") :: Humanoid
 	newCharacter.Name = player.Name
@@ -68,19 +75,6 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 	if not humanoidRootPart or not humanoid then
 		warn("Primary part is missing from morph:", morph)
 		return newCharacter:Destroy()
-	end
-
-	local animateScript = ReplicatedStorage.Assets.Animate:Clone()
-	animateScript.Parent = newCharacter
-	animateScript.Enabled = true
-	for state: any, animationId: any in morphData.animations do
-		local stringValue = Instance.new("StringValue")
-		stringValue.Name = state
-		stringValue.Parent = animateScript
-		local animation = Instance.new("Animation")
-		animation.AnimationId = animationId
-		animation.Name = "Animation1"
-		animation.Parent = stringValue
 	end
 
 	oldhumanoid.AutoJumpEnabled = false
@@ -135,11 +129,12 @@ function MorphServiceServer.unmorph(_self: MorphServiceServer, player: Player): 
 end
 
 function MorphServiceServer.equipMorph(self: MorphServiceServer, player, morph)
+	print(`[MorphServiceServer] Received equip request from {player} for: {morph}`)
 	if not morph then
 		return
 	end
 
-	local morphModel = ServerStorage.Morphs:FindFirstChild(morph)
+	local morphModel = ServerStorage.Assets.Morphs:FindFirstChild(morph)
 	if not morphModel then
 		return
 	end
