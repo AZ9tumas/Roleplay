@@ -26,6 +26,8 @@ local BUTTON_SCALE_PRESSED = 0.9
 local productNames = {
 	["1"] = "MorphPack1",
 	["UnlockMorph"] = "UnlockMorph",
+	["PoppyPlayTimePack"] = "PoppyPlayTimePack",
+	["SnakePhasePack"] = "SnakePhasePack",
 }
 
 -- State

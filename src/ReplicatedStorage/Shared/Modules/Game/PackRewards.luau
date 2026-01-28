@@ -1,9 +1,7 @@
 local PackRewards = {
-	MorphPack1 = { "HungryWormDaddy", "HungryWormPhase3" },
+	MorphPack1 = { "HungryWormSnakePhase3", "HungryWormSnakePhase2" },
 	MorphPack2 = { "HungryWormCatNap", "HungryWormDogDay" },
-	GoldPack = "AbbySaja",
-	PoppyPlayTimePack = { "HungryWormCatNap", "HungryWormDogDay" },
-	SnakePhasePack = { "HungryWormSnakePhase3", "HungryWormSnakePhase2" },
+	GoldPack = "HungryWormGolden",
 }
 
 return PackRewards

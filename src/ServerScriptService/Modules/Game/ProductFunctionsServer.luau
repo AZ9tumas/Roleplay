@@ -35,20 +35,6 @@ return {
 		
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end,
-	
-	[Products.getProductId("PoppyPlayTimePack")] = function(player: Player)
-		for _, morphName in ipairs(PackRewards.PoppyPlayTimePack) do
-			MorphServiceServer:addToData(player, morphName)
-		end
-		return Enum.ProductPurchaseDecision.PurchaseGranted
-	end,
-
-	[Products.getProductId("SnakePhasePack")] = function(player: Player)
-		for _, morphName in ipairs(PackRewards.SnakePhasePack) do
-			MorphServiceServer:addToData(player, morphName)
-		end
-		return Enum.ProductPurchaseDecision.PurchaseGranted
-	end,
 
 	[Products.getProductId("UnlockMorph")] = function(player: Player)
 		local morph = MorphServiceServer.morphPurchaseCache[player]

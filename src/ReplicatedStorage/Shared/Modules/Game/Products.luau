@@ -28,21 +28,11 @@ local ids: {
 	[string]: GamepassData,
 } = {
 	["MorphPack1"] = {
-		productId = 3523117726,
-		type = "DevProduct",
-		oneTime = true,
-	},
-	["MorphPack2"] = {
-		productId = 000010000,
-		type = "DevProduct",
-		oneTime = true,
-	},
-	["PoppyPlayTimePack"] = {
-		productId = 1690631469,
+		productId = 1692520953,
 		type = "Gamepass",
 	},
-	["SnakePhasePack"] = {
-		productId = 1692520953,
+	["MorphPack2"] = {
+		productId = 1690631469,
 		type = "Gamepass",
 	},
 	["UnlockMorph"] = {

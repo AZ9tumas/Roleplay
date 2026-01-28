@@ -18,25 +18,3 @@ MorphServiceServer:init(true)
 MonetizationServiceServer:init()
 CoinServiceServer:init()
 GameplayServiceServer:init()
-
-local function getstuff()
-	local stuff = {}
-	for i, v in pairs(workspace.Morphs.NewMorphs:GetChildren()) do
-		local morphName = v.Name
-		local morphStuff = {animations = {}}
-
-		for _, v2 in pairs(v.Animate:GetChildren()) do
-			for _, v3 in pairs(v2:GetChildren()) do
-				if not v3:IsA("Animation") then continue end
-				
-				morphStuff.animations[v2.Name] = v3.AnimationId
-			end
-
-			stuff[morphName] = morphStuff
-		end
-	end
-
-	print(stuff, 'hey')
-end
-
-task.delay(1, getstuff)
