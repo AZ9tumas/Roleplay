@@ -35,6 +35,20 @@ return {
 		
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end,
+	
+	[Products.getProductId("PoppyPlayTimePack")] = function(player: Player)
+		for _, morphName in ipairs(PackRewards.PoppyPlayTimePack) do
+			MorphServiceServer:addToData(player, morphName)
+		end
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end,
+
+	[Products.getProductId("SnakePhasePack")] = function(player: Player)
+		for _, morphName in ipairs(PackRewards.SnakePhasePack) do
+			MorphServiceServer:addToData(player, morphName)
+		end
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end,
 
 	[Products.getProductId("UnlockMorph")] = function(player: Player)
 		local morph = MorphServiceServer.morphPurchaseCache[player]
@@ -46,21 +60,6 @@ return {
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end,
 
-	[Products.getProductId("LimitedMorphTest")] = function(player: Player, receiptInfo: any)
-		local result = MorphServiceServer:buyLimitedAmountMorph("LimitedMorphTest", receiptInfo, player)
-		if result == Enum.ProductPurchaseDecision.PurchaseGranted then
-			MorphServiceServer:addToData(player, "LimitedMorphTest")
-		end
-		return result
-	end,
-
-	[Products.getProductId("LimitedTimeMorphTest")] = function(player: Player, receiptInfo: any)
-		local result = MorphServiceServer:buyLimitedTimeMorph("LimitedTimeMorphTest", receiptInfo, player)
-		if result == Enum.ProductPurchaseDecision.PurchaseGranted then
-			MorphServiceServer:addToData(player, "HungryWormDogDay")
-		end
-		return result
-	end,
 
 	[Products.getProductId("BuyGoldPack")] = function(player: Player)
 		-- Check if this is a coil gamepass purchase (using the cache)

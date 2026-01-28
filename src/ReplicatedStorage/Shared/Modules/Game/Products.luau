@@ -37,19 +37,14 @@ local ids: {
 		type = "DevProduct",
 		oneTime = true,
 	},
-	["LimitedMorphTest"] = {
-		productId = 3466413824,
-		type = "DevProduct",
-		oneTime = true,
-		limitedAmount = 22,
+	["PoppyPlayTimePack"] = {
+		productId = 1690631469,
+		type = "Gamepass",
 	},
-	["LimitedTimeMorphTest"] = {
-		productId = 3467367924,
-		type = "DevProduct",
-		oneTime = true,
-		limitedTime = 120,
+	["SnakePhasePack"] = {
+		productId = 1692520953,
+		type = "Gamepass",
 	},
-
 	["UnlockMorph"] = {
 		productId = 1597265399,
 		type = "DevProduct",

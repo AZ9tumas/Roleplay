@@ -25,8 +25,6 @@ local BUTTON_SCALE_PRESSED = 0.9
 -- {itemName: string -> productName: string}
 local productNames = {
 	["1"] = "MorphPack1",
-	["LimitedMorphTest"] = "LimitedMorphTest",
-	["LimitedTimeMorphTest"] = "LimitedTimeMorphTest",
 	["UnlockMorph"] = "UnlockMorph",
 }
 
