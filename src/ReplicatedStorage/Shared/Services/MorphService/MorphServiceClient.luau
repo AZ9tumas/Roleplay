@@ -54,11 +54,7 @@ function MorphServiceClient.setupAnimationController(self: MorphServiceClient, m
 		animation.AnimationId = id
 		local track = animator:LoadAnimation(animation)
 
-		if name == "idle" or name == "walk" or name == "run" then
-			track.Looped = true
-		else
-			track.Looped = false
-		end
+		track.Looped = true
 
 		tracks[name] = track
 	end
@@ -68,10 +64,6 @@ function MorphServiceClient.setupAnimationController(self: MorphServiceClient, m
 
 	local function play(animName, fadeTime)
 		local track = tracks[animName]
-		-- Fallback to walk if run is missing, or walk if run is missing
-		if not track then
-			if animName == "run" then track = tracks["walk"] end
-		end
 		
 		if not track then return end
 
@@ -95,15 +87,9 @@ function MorphServiceClient.setupAnimationController(self: MorphServiceClient, m
 		local isMoving = moveDirection.Magnitude > 0.1
 		
 		if isMoving then
-			local speed = (humanoid.RootPart and humanoid.RootPart.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude or 0
-			-- Only use run if we're moving fairly fast, otherwise default to walk
-			if tracks.run and speed > 12 then
-				play("run", 0.2)
-			else
-				play("walk", 0.2)
-			end
+			play("run", 0.4)
 		else
-			play("idle", 0.2)
+			play("idle", 0.4)
 		end
 	end
 
