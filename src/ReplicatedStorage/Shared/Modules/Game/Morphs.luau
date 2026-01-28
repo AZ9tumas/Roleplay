@@ -11,50 +11,199 @@ export type MorphData = {
 }
 
 local Morphs: { [string]: MorphData } = {
-	["AbbySaja"] = {
+	["HungryWormDaddy"] = {
 		animations = {
-			walk = "rbxassetid://118681492030786",
-			run = "rbxassetid://118681492030786",
-			idle = "rbxassetid://126415726327787",
-			jumpscare = "rbxassetid://126415726327787",
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
 		},
-		displayName = "Abby Saja",
+		displayName = "Hungry Worm Daddy",
 	},
-	["AbbySaja2"] = {
+	["HungryWormDoey"] = {
 		animations = {
-			walk = "rbxassetid://118681492030786",
-			run = "rbxassetid://118681492030786",
-			idle = "rbxassetid://126415726327787",
-			jumpscare = "rbxassetid://126415726327787",
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
 		},
-		displayName = "Abby Saja2",
+		displayName = "Hungry Worm Doey",
 	},
-	["LimitedMorphTest"] = {
+	["HungryWormHamoodHabibi"] = {
 		animations = {
-			walk = "rbxassetid://118681492030786",
-			run = "rbxassetid://118681492030786",
-			idle = "rbxassetid://126415726327787",
-			jumpscare = "rbxassetid://126415726327787",
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
 		},
-		displayName = "Limited Morph Test",
+		displayName = "Hungry Worm Hamood Habibi",
 	},
-	["LimitedTimeMorphTest"] = {
+	["HungryWormCatNap"] = {
 		animations = {
-			walk = "rbxassetid://118681492030786",
-			run = "rbxassetid://118681492030786",
-			idle = "rbxassetid://126415726327787",
-			jumpscare = "rbxassetid://126415726327787",
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
 		},
-		displayName = "Limited Time Morph Test",
+		displayName = "Hungry Worm Cat Nap",
 	},
-	["Trapper"] = {
+	["HungryWormDogDay"] = {
 		animations = {
-			walk = "rbxassetid://118681492030786",
-			run = "rbxassetid://118681492030786",
-			idle = "rbxassetid://126415726327787",
-			jumpscare = "rbxassetid://126415726327787",
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
 		},
-		displayName = "Trapper",
+		displayName = "Hungry Worm Dog Day",
+	},
+	["HungryWormHuggy"] = {
+		animations = {
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Huggy",
+	},
+	["HungryWormSmiley"] = {
+		animations = {
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Smiley",
+	},
+	["HungryWormMommy"] = {
+		animations = {
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Mommy",
+	},
+	["HungryWormPhase2"] = {
+		animations = {
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Phase 2",
+	},
+	["HungryWormPhase3"] = {
+		animations = {
+			
+			run = "rbxassetid://107989195745842",
+			idle = "rbxassetid://98781033980114",
+			jumpscare = "rbxassetid://96137844701964",
+		},
+		displayName = "Hungry Worm Phase 3",
+	},
+	["HungryWorm"] = {
+		animations = {
+			idle = "rbxassetid://99840449575812",
+			jumpscare = "rbxassetid://125753152004331",
+			run = "rbxassetid://108789971402451",
+		},
+		displayName = "Hungry Worm",
+	},
+	["HungryWormCat"] = {
+		animations = {
+			idle = "rbxassetid://108508003683938",
+			jumpscare = "rbxassetid://91715548494031",
+			run = "rbxassetid://71151334318559",
+		},
+		displayName = "Hungry Worm Cat",
+	},
+	["HungryWormCatV2"] = {
+		animations = {
+			idle = "rbxassetid://128584606912953",
+			jumpscare = "rbxassetid://138013083967655",
+			run = "rbxassetid://78619735950315",
+		},
+		displayName = "Hungry Worm Cat V2",
+	},
+	["HungryWormGolden"] = {
+		animations = {
+			idle = "rbxassetid://99840449575812",
+			jumpscare = "rbxassetid://125753152004331",
+			run = "rbxassetid://108789971402451",
+		},
+		displayName = "Hungry Worm Golden",
+	},
+	["HungryWormPhase4"] = {
+		animations = {
+			idle = "rbxassetid://99840449575812",
+			jumpscare = "rbxassetid://125753152004331",
+			run = "rbxassetid://108789971402451",
+		},
+		displayName = "Hungry Worm Phase 4",
+	},
+	["HungryWormPibble"] = {
+		animations = {
+			idle = "rbxassetid://108508003683938",
+			jumpscare = "rbxassetid://91715548494031",
+			run = "rbxassetid://71151334318559",
+		},
+		displayName = "Hungry Worm Pibble",
+	},
+	["HungryWormSnake"] = {
+		animations = {
+			idle = "rbxassetid://128584606912953",
+			jumpscare = "rbxassetid://75669641634534",
+			run = "rbxassetid://78619735950315",
+		},
+		displayName = "Hungry Worm Snake",
+	},
+	["HungryWormSnakeDaddy"] = {
+		animations = {
+			idle = "rbxassetid://128584606912953",
+			jumpscare = "rbxassetid://75669641634534",
+			run = "rbxassetid://78619735950315",
+		},
+		displayName = "Hungry Worm Snake Daddy",
+	},
+	["HungryWormSnakeMommy"] = {
+		animations = {
+			idle = "rbxassetid://128584606912953",
+			jumpscare = "rbxassetid://75669641634534",
+			run = "rbxassetid://78619735950315",
+		},
+		displayName = "Hungry Worm Snake Mommy",
+	},
+	["HungryWormSnakePhase2"] = {
+		animations = {
+			idle = "rbxassetid://128584606912953",
+			jumpscare = "rbxassetid://75669641634534",
+			run = "rbxassetid://78619735950315",
+		},
+		displayName = "Hungry Worm Snake Phase 2",
+	},
+	["HungryWormSnakePhase3"] = {
+		animations = {
+			idle = "rbxassetid://128584606912953",
+			jumpscare = "rbxassetid://75669641634534",
+			run = "rbxassetid://78619735950315",
+		},
+		displayName = "Hungry Worm Snake Phase 3",
+	},
+	["HungryWormSonic"] = {
+		animations = {
+			idle = "rbxassetid://104158264572710",
+			jumpscare = "rbxassetid://129741562150981",
+			run = "rbxassetid://123090582958115",
+		},
+		displayName = "Hungry Worm Sonic",
+	},
+	["HungryWormTomato"] = {
+		animations = {
+			idle = "rbxassetid://99840449575812",
+			jumpscare = "rbxassetid://76779218633223",
+			run = "rbxassetid://108789971402451",
+		},
+		displayName = "Hungry Worm Tomato",
 	},
 }
 

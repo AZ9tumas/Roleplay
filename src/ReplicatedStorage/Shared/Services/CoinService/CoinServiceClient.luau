@@ -3,6 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local CoinServiceUtil = require(ReplicatedStorage.Shared.Services.CoinService.CoinServiceUtil)
 
@@ -76,6 +77,13 @@ local function destroyCoin(coinId: string): ()
 	end
 end
 
+local function playCoinSound(): ()
+	local coinEffect = SoundService:FindFirstChild("CoinEffect") :: Sound?
+	if coinEffect then
+		coinEffect:Play()
+	end
+end
+
 local function setupCoinTouch(coin: BasePart, coinId: string, self: any): ()
 	coin.Touched:Connect(function(hit: BasePart)
 		local player = Players.LocalPlayer
@@ -109,6 +117,7 @@ end
 
 function CoinServiceClient.onCoinCollected(_self: CoinServiceClient, coinId: string): ()
 	destroyCoin(coinId)
+	playCoinSound()
 end
 
 function CoinServiceClient.init(self: CoinServiceClient): ()

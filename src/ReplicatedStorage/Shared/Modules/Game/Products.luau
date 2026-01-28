@@ -28,27 +28,40 @@ local ids: {
 	[string]: GamepassData,
 } = {
 	["MorphPack1"] = {
-		productId = 00001000,
+		productId = 1692520953,
 		type = "Gamepass",
-		oneTime = true,
 	},
-	["LimitedMorphTest"] = {
-		productId = 3466413824,
-		type = "DevProduct",
-		oneTime = true,
-		limitedAmount = 22,
+	["MorphPack2"] = {
+		productId = 1690631469,
+		type = "Gamepass",
 	},
-	["LimitedTimeMorphTest"] = {
-		productId = 3467367924,
-		type = "DevProduct",
-		oneTime = true,
-		limitedTime = 120,
-	},
-
 	["UnlockMorph"] = {
 		productId = 1597265399,
 		type = "DevProduct",
 		oneTime = false,
+	},
+
+	["BuyGoldPack"] = {
+		productId = 000010000,
+		type = "DevProduct",
+		oneTime = false,
+	},
+	
+	["BuySuperCoil"] = {
+		productId = 000010000,
+		type = "Gamepass",
+	},
+	["BuySpeedCoil"] = {
+		productId = 1686493633,
+		type = "Gamepass",
+	},
+	["BuyRainbowCoil"] = {
+		productId = 000010000,
+		type = "Gamepass",
+	},
+	["BuyGravityCoil"] = {
+		productId = 000010000,
+		type = "Gamepass",
 	},
 }
 
