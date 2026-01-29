@@ -148,7 +148,8 @@ function MorphServiceServer.unequipMorph(self: MorphServiceServer, player)
 	self:unmorph(player)
 end
 
-function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player, morph: string)
+function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player, morph: string, suppressSameOwned: boolean?)
+	suppressSameOwned = suppressSameOwned or true
 	local morphData = Morphs[morph]
 	if not morphData then
 		return
@@ -163,7 +164,8 @@ function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player,
 	
 	if foundInData then
 		-- Player already owns this morph
-		if notificationService then
+		if notificationService and not suppressSameOwned then
+			warn(suppressSameOwned)
 			notificationService:SendNotification(player, "You already own this")
 		end
 		return

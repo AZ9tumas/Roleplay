@@ -4,8 +4,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Networker = require(ReplicatedStorage.Packages.Networker)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local GameplayServiceClient = {}
+GameplayServiceClient.trophyClaimed = Signal.new()
 
 local timerDuration: number = 0
 local remainingTime: number = 0
@@ -285,11 +287,14 @@ function GameplayServiceClient._setupTrophyPrompt(self: GameplayServiceClient, t
 end
 
 function GameplayServiceClient._setupTrophies(self: GameplayServiceClient): ()
-	local trophiesFolder = workspace:FindFirstChild("Trophies")
+	print("GameplayServiceClient: Setting up trophies...")
+	local trophiesFolder = workspace:WaitForChild("Trophies", 15)
 	if not trophiesFolder then
+		warn("GameplayServiceClient: Trophies folder not found in workspace (timeout)")
 		return
 	end
 	
+	print("GameplayServiceClient: Trophies folder found, checking items...")
 	-- Setup prompts for all existing trophies (except those for morphs player already owns)
 	for _, trophy in trophiesFolder:GetChildren() do
 		if trophy:IsA("Model") then
@@ -297,6 +302,7 @@ function GameplayServiceClient._setupTrophies(self: GameplayServiceClient): ()
 			
 			-- If player already owns this morph, delete the trophy immediately
 			if ownedMorphs[morphName] then
+				-- print("GameplayServiceClient: Removing already owned trophy " .. morphName)
 				trophy:Destroy()
 			else
 				self:_setupTrophyPrompt(trophy)
@@ -307,6 +313,7 @@ end
 
 -- Called from server when player's owned morphs are received
 function GameplayServiceClient.initOwnedMorphs(self: GameplayServiceClient, serverOwnedMorphs: { [string]: any }): ()
+	print("GameplayServiceClient: Received owned morphs data")
 	ownedMorphs = serverOwnedMorphs or {}
 	
 	-- Now that we have the owned morphs, setup trophies (with cleanup)
@@ -314,7 +321,7 @@ function GameplayServiceClient.initOwnedMorphs(self: GameplayServiceClient, serv
 end
 
 function GameplayServiceClient.onTrophyClaimed(_self: GameplayServiceClient, trophyName: string): ()
-	warn("trophy claimed: " .. trophyName)
+	print("GameplayServiceClient: Trophy claimed confirmation received for " .. tostring(trophyName))
 	-- Add to local owned morphs cache
 	ownedMorphs[trophyName] = { obtainTime = os.time() }
 	
@@ -326,10 +333,15 @@ function GameplayServiceClient.onTrophyClaimed(_self: GameplayServiceClient, tro
 			trophy:Destroy()
 		end
 	end
+
+	-- Fire signal for UI to handle
+	print("GameplayServiceClient: Firing trophyClaimed signal for " .. tostring(trophyName))
+	_self.trophyClaimed:Fire(trophyName)
 end
 
 function GameplayServiceClient.init(self: GameplayServiceClient): ()
 	self.networker = Networker.client.new("Gameplay", self)
+	print("GameplayServiceClient: Networker initialized")
 	
 	-- Trophy setup is now done in initOwnedMorphs after receiving player's owned morphs from server
 	-- This ensures we can delete trophies for morphs the player already owns

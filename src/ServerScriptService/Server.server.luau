@@ -10,7 +10,7 @@ local NotificationServiceServer = require(ServerScriptService.Services.Notificat
 
 DataService.server:init({
 	template = DataTemplate,
-	profileStoreIndex = "Test#1",
+	profileStoreIndex = "Test#2",
 	useMock = false,
 })
 NotificationServiceServer:init()

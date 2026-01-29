@@ -8,7 +8,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local HttpService = game:GetService("HttpService")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
-local DataService = require(ReplicatedStorage.Packages.DataService).server
+local DataService
 local PackRewards = require(ReplicatedStorage.Shared.Modules.Game.PackRewards)
 
 -- Lazy load MorphServiceServer to avoid circular dependency
@@ -19,6 +19,17 @@ local function getMorphServiceServer()
 	end
 	return MorphServiceServer
 end
+
+-- Lazy load NotificationServiceServer
+local NotificationServiceServer = nil
+local function getNotificationServiceServer()
+	if NotificationServiceServer == nil then
+		NotificationServiceServer = require(ServerScriptService.Services.NotificationService.NotificationServiceServer)
+	end
+	return NotificationServiceServer
+end
+
+local GROUP_ID = 267245073
 
 local goldPack: Folder = ServerStorage:WaitForChild("GoldPack")
 local TIMER_DURATION = goldPack:WaitForChild("Time").Value
@@ -77,14 +88,11 @@ end
 
 -- Track if player has already claimed gold pack (saved to data)
 local function hasPlayerClaimedGoldPack(player: Player): boolean
-	-- Check if DataService is available before accessing
-	print(DataService, "status right now")
 	if DataService == nil then
-		repeat
-			task.wait(1)
-		until DataService ~= nil
-		--return false
+		warn("DataService is nil in GameplayServiceServer!")
+		return false
 	end
+	
 	local success, goldPackClaimed = pcall(function() return DataService:get(player, { "goldPackClaimed" }) end)
 	if not success then return false end
 
@@ -108,6 +116,24 @@ local claimedTrophies: { [Player]: { [string]: boolean } } = {}
 -- Debounce cache to prevent touch spam
 local touchDebounce: { [Player]: number } = {}
 local TOUCH_DEBOUNCE_TIME = 2 -- seconds
+
+function GameplayServiceServer.checkUnlockCondition(self: GameplayServiceServer, player: Player): boolean
+	if GROUP_ID == 0 then
+		warn("GROUP_ID is not set in GameplayServiceServer")
+		return false
+	end
+	
+	local success, isInGroup = pcall(function()
+		return player:IsInGroupAsync(GROUP_ID)
+	end)
+	
+	if not success then
+		warn("Failed to check group membership for " .. player.Name)
+		return false
+	end
+	
+	return isInGroup
+end
 
 function GameplayServiceServer.updateProgressBar(_self: GameplayServiceServer): ()
 	local goalStats = ServerStorage:FindFirstChild("GoalStats")
@@ -521,24 +547,80 @@ function GameplayServiceServer._setupCoilStand(self: GameplayServiceServer, stan
 end
 
 function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: Player): ()
-	local joinTime = os.time()
-	playerJoinTimes[player] = joinTime
+	task.spawn(function()
+		print("GameplayServiceServer: Initializing player " .. player.Name)
+		
+		-- Wait for DataService to load the player's profile to prevent nil index errors
+		if DataService then
+			DataService:waitForData(player)
+		else
+			warn("GameplayServiceServer: DataService is nil during _initPlayer")
+			return
+		end
+
+		local joinTime = os.time()
+		playerJoinTimes[player] = joinTime
+		
+		-- Check if player has already claimed gold pack
+		local goldPackClaimed = hasPlayerClaimedGoldPack(player)
+		print("GameplayServiceServer: Gold pack claimed: " .. tostring(goldPackClaimed))
+		
+		-- Send join time, timer duration, and claimed status to client so it can initialize its timer
+		print("GameplayServiceServer: Firing initTimer")
+		self.networker:fire(player, "initTimer", joinTime, TIMER_DURATION, goldPackClaimed)
+		
+		-- Send MorphPack time limits to client as a table
+		print("GameplayServiceServer: Firing initMorphPackTimers")
+		self.networker:fire(player, "initMorphPackTimers", MORPH_PACK_TIME_LIMITS)
+		
+		-- Send player's unlocked morphs for trophy cleanup on client
+		print("GameplayServiceServer: Getting unlockedMorphs data...")
+		local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+		print("GameplayServiceServer: Got unlockedMorphs (count: " .. (unlockedMorphs and #unlockedMorphs or 0) .. ")")
+		
+		-- Check for Group Morph Unlocks
+		print("GameplayServiceServer: Checking group membership...")
+		local inGroup = self:checkUnlockCondition(player)
+		print("GameplayServiceServer: Group member: " .. tostring(inGroup))
 	
-	-- Check if player has already claimed gold pack
-	local goldPackClaimed = hasPlayerClaimedGoldPack(player)
+		local groupMorphs = { "HungryWormSmiley", "HungryWormCatV2" }
+		local anyNewUnlocked = false
+		local missingGroupMorphs = false
 	
-	-- Send join time, timer duration, and claimed status to client so it can initialize its timer
-	self.networker:fire(player, "initTimer", joinTime, TIMER_DURATION, goldPackClaimed)
+		for _, morphName in ipairs(groupMorphs) do
+			if unlockedMorphs[morphName] then
+				continue
+			end
 	
-	-- Send MorphPack time limits to client as a table
-	self.networker:fire(player, "initMorphPackTimers", MORPH_PACK_TIME_LIMITS)
+			if inGroup then
+				print("GameplayServiceServer: Awarding group morph: " .. morphName)
+				local morphService = getMorphServiceServer()
+				-- Pass true to suppress "You already own this" if we somehow hit a race condition
+				morphService:addToData(player, morphName, true)
+				unlockedMorphs[morphName] = true -- Update local cache so client gets it
+				anyNewUnlocked = true
+			else
+				missingGroupMorphs = true
+			end
+		end
 	
-	-- Send player's unlocked morphs for trophy cleanup on client
-	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
-	self.networker:fire(player, "initOwnedMorphs", unlockedMorphs)
+		if anyNewUnlocked then
+			getNotificationServiceServer():SendNotification(player, "You received exclusive morphs for being in the group!")
+		elseif missingGroupMorphs and not inGroup then
+			getNotificationServiceServer():SendNotification(player, "Join the group to get free morphs!")
+		end
+		
+		print("GameplayServiceServer: Firing initOwnedMorphs")
+		self.networker:fire(player, "initOwnedMorphs", unlockedMorphs)
+	end)
 end
 
 function GameplayServiceServer.init(self: GameplayServiceServer): ()
+	-- Initialize DataService here to avoid circular dependency issues
+	if not DataService then
+		DataService = require(ReplicatedStorage.Packages.DataService).server
+	end
+
 	self.networker = Networker.server.new("Gameplay", self, {
 		self.requestGoldPackPurchase,
 		self.claimGoldPack,
@@ -547,7 +629,9 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 		self.claimTrophy,
 	})
 	
-	self:updateProgressBar()
+	task.spawn(function()
+		self:updateProgressBar()
+	end)
 	
 	-- Start periodic update of progress bar (every 30 minutes)
 	task.spawn(function()
