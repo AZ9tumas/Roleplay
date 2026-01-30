@@ -33,6 +33,13 @@ local productNames = {
 	["SnakePhasePack"] = "MorphPack1",     -- SnakePhasePack uses MorphPack1 gamepass
 }
 
+-- Maps shop item names to their morph model name in workspace
+-- Morphs are found in workspace (e.g., workspace.SnakePhasePack, workspace.PoppyPlayTimePack)
+local shopItemToMorphModel = {
+	["SnakePhasePack"] = "SnakePhasePack",
+	["PoppyPlayTimePack"] = "PoppyPlayTimePack",
+}
+
 -- State
 local currentOpenMenu: string? = nil
 local connections: { RBXScriptConnection } = {}
@@ -640,10 +647,18 @@ local function setupShopScreen()
 						local productName = getProductNameFromItem(child)
 						print("UIManager: Item", child.Name, "resolved to product:", productName or "nil")
 
-						-- setup viewport
+						-- setup viewport with morph model
 						local viewPortFrame: ViewportFrame = child:FindFirstChild("ViewportFrame") :: ViewportFrame
 						if viewPortFrame then
-							
+							-- Check if this item has a mapped morph model
+							local morphModelName = shopItemToMorphModel[child.Name]
+							if morphModelName then
+								-- Find the morph model in workspace
+								local morphModel = workspace:FindFirstChild(morphModelName) :: Model?
+								if morphModel then
+									setupViewport(viewPortFrame, morphModel)
+								end
+							end
 						end
 						
 						-- Setup BuyButton click and animation
