@@ -553,6 +553,31 @@ local function setupTrophyClaimScreen()
 	end
 end
 
+-- Helper: Setup viewport with model
+local function setupViewport(viewport: ViewportFrame, model: Model)
+	viewport:ClearAllChildren()
+	
+	-- Clone model for viewport
+	local displayModel = model:Clone()
+	displayModel.Parent = viewport
+	
+	-- Setup Camera
+	local camera = Instance.new("Camera")
+	camera.Parent = viewport
+	viewport.CurrentCamera = camera
+	
+	local cf, size = displayModel:GetBoundingBox()
+	local maxDim = math.max(size.X, size.Y, size.Z)
+	local dist = maxDim * 2
+	
+	-- Position camera to look at center of bounding box
+	-- Adjust angle to look nice (e.g., isometric-ish view)
+	local center = cf.Position
+	local camPos = center + Vector3.new(dist * 0.5, dist * 0.5, dist)
+	
+	camera.CFrame = CFrame.lookAt(camPos, center)
+end
+
 -- Helper: Get product name from a shop item (item.Name is directly linked to product name)
 local function getProductNameFromItem(item: Instance): string?
 	-- Primary: check if item name directly matches a product or morph
@@ -614,6 +639,12 @@ local function setupShopScreen()
 						-- Get the actual product name from ProductName TextLabel or the item name
 						local productName = getProductNameFromItem(child)
 						print("UIManager: Item", child.Name, "resolved to product:", productName or "nil")
+
+						-- setup viewport
+						local viewPortFrame: ViewportFrame = child:FindFirstChild("ViewportFrame") :: ViewportFrame
+						if viewPortFrame then
+							
+						end
 						
 						-- Setup BuyButton click and animation
 						local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
