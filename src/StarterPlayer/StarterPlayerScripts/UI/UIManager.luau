@@ -24,11 +24,13 @@ local BUTTON_SCALE_PRESSED = 0.9
 
 -- Info
 -- {itemName: string -> productName: string}
+-- Maps shop UI item names to their actual product names
 local productNames = {
 	["1"] = "MorphPack1",
 	["UnlockMorph"] = "UnlockMorph",
-	["PoppyPlayTimePack"] = "PoppyPlayTimePack",
-	["SnakePhasePack"] = "SnakePhasePack",
+	-- Shop packs map to MorphPack gamepasses (same gamepass ID)
+	["PoppyPlayTimePack"] = "MorphPack2",  -- PoppyPlayTimePack uses MorphPack2 gamepass
+	["SnakePhasePack"] = "MorphPack1",     -- SnakePhasePack uses MorphPack1 gamepass
 }
 
 -- State

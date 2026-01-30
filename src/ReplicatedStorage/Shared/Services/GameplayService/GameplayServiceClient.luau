@@ -1,10 +1,12 @@
 --!strict
 
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Signal = require(ReplicatedStorage.Packages.Signal)
+local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 
 local GameplayServiceClient = {}
 GameplayServiceClient.trophyClaimed = Signal.new()
@@ -20,7 +22,14 @@ local morphPackState: { [number]: {
 	timeLimit: number,
 	timerLabel: TextLabel?,
 	deleted: boolean,
+	purchased: boolean,  -- Track if pack has been purchased
 } } = {}
+
+-- MorphPack gamepass IDs mapping (packNumber -> product name)
+local MORPH_PACK_PRODUCTS = {
+	[1] = "MorphPack1",
+	[2] = "MorphPack2",
+}
 
 -- Track collected trophies to prevent duplicate prompts
 local collectedTrophies: { [string]: boolean } = {}
@@ -155,20 +164,40 @@ end
 
 function GameplayServiceClient.initMorphPackTimers(self: GameplayServiceClient, timeLimits: { [number]: number }): ()
 	local currentTime = os.time()
+	local player = Players.LocalPlayer
 	
 	-- Initialize state for each morph pack from the server-provided time limits
 	for packNumber, timeLimit in pairs(timeLimits) do
 		local timerLabel = self._getMorphPackTimerLabel(packNumber)
 		local isExpired = currentTime >= timeLimit
 		
+		-- Check if player owns the gamepass for this pack
+		local productName = MORPH_PACK_PRODUCTS[packNumber]
+		local isPurchased = false
+		if productName then
+			local gamepassId = Products.getProductId(productName)
+			if gamepassId and gamepassId > 0 then
+				local success, ownsPass = pcall(function()
+					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, gamepassId)
+				end)
+				if success and ownsPass then
+					isPurchased = true
+				end
+			end
+		end
+		
 		morphPackState[packNumber] = {
 			timeLimit = timeLimit,
 			timerLabel = timerLabel,
 			deleted = false,
+			purchased = isPurchased,
 		}
 		
+		-- If already purchased, show "Already Purchased" instead of timer
+		if isPurchased and timerLabel then
+			timerLabel.Text = "Already Purchased"
 		-- If timer already expired, delete the model
-		if isExpired then
+		elseif isExpired then
 			self._deleteMorphPackModel(packNumber)
 			morphPackState[packNumber].deleted = true
 		elseif timerLabel then
@@ -240,7 +269,8 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 		
 		-- MorphPack timers (global countdown to timestamp) - modular iteration
 		for packNumber, state in pairs(morphPackState) do
-			if not state.deleted and state.timeLimit > 0 then
+			-- Skip if already purchased (shows "Already Purchased") or deleted
+			if not state.deleted and not state.purchased and state.timeLimit > 0 then
 				local remaining = math.max(state.timeLimit - currentTimeNow, 0)
 				
 				if state.timerLabel then
@@ -345,6 +375,28 @@ function GameplayServiceClient.init(self: GameplayServiceClient): ()
 	
 	-- Trophy setup is now done in initOwnedMorphs after receiving player's owned morphs from server
 	-- This ensures we can delete trophies for morphs the player already owns
+	
+	-- Listen for gamepass purchases to update MorphPack timers to "Already Purchased"
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
+		if player ~= Players.LocalPlayer or not wasPurchased then
+			return
+		end
+		
+		-- Check if purchased gamepass matches a morph pack
+		for packNumber, productName in pairs(MORPH_PACK_PRODUCTS) do
+			local packGamepassId = Products.getProductId(productName)
+			if packGamepassId == gamePassId then
+				-- Update the state and timer label
+				if morphPackState[packNumber] then
+					morphPackState[packNumber].purchased = true
+					if morphPackState[packNumber].timerLabel then
+						morphPackState[packNumber].timerLabel.Text = "Already Purchased"
+					end
+				end
+				break
+			end
+		end
+	end)
 end
 
 type GameplayServiceClient = typeof(GameplayServiceClient) & {
