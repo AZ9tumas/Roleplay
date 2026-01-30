@@ -203,6 +203,8 @@ local function updateMorphTemplate(template: Instance, morphName: string, isUnlo
 	if locked then
 		locked.Visible = not isUnlocked
 	end
+
+	template.MorphImage.Image = Morphs[morphName].imageId or ""
 	
 	-- Find PurchaseButton - acts as equip/unequip button when unlocked
 	local purchaseButton = template:FindFirstChild("PurchaseButton") :: GuiButton?
