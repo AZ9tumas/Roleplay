@@ -173,6 +173,7 @@ local Morphs: { [string]: MorphData } = {
 			run = "rbxassetid://78619735950315",
 		},
 		displayName = "Hungry Worm Snake",
+		imageId = "rbxassetid://107761319198794",
 	},
 	["HungryWormSnakeDaddy"] = {
 		animations = {
