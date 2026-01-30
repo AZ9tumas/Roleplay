@@ -33,8 +33,7 @@ local productNames = {
 	["SnakePhasePack"] = "MorphPack1",     -- SnakePhasePack uses MorphPack1 gamepass
 }
 
--- Maps shop item names to their morph model name in workspace
--- Morphs are found in workspace (e.g., workspace.SnakePhasePack, workspace.PoppyPlayTimePack)
+-- Maps shop item names to their morph model name in ReplicatedStorage.Assets
 local shopItemToMorphModel = {
 	["SnakePhasePack"] = "SnakePhasePack",
 	["PoppyPlayTimePack"] = "PoppyPlayTimePack",
@@ -653,10 +652,13 @@ local function setupShopScreen()
 							-- Check if this item has a mapped morph model
 							local morphModelName = shopItemToMorphModel[child.Name]
 							if morphModelName then
-								-- Find the morph model in workspace
-								local morphModel = workspace:FindFirstChild(morphModelName) :: Model?
-								if morphModel then
-									setupViewport(viewPortFrame, morphModel)
+								-- Find the morph model in ReplicatedStorage.Assets
+								local assets = ReplicatedStorage:FindFirstChild("Assets")
+								if assets then
+									local morphModel = assets:FindFirstChild(morphModelName) :: Model?
+									if morphModel then
+										setupViewport(viewPortFrame, morphModel)
+									end
 								end
 							end
 						end
