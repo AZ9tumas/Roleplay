@@ -559,7 +559,7 @@ local function setupTrophyClaimScreen()
 	end
 end
 
--- Helper: Setup viewport with model
+-- Helper: Setup viewport with model - positions camera to look at front face of model
 local function setupViewport(viewport: ViewportFrame, model: Model)
 	viewport:ClearAllChildren()
 	
@@ -572,15 +572,29 @@ local function setupViewport(viewport: ViewportFrame, model: Model)
 	camera.Parent = viewport
 	viewport.CurrentCamera = camera
 	
+	-- Create a reference part for positioning
+	local refPart = Instance.new("Part")
+	refPart.Transparency = 1
+	refPart.Anchored = true
+	refPart.CanCollide = false
+	refPart.Parent = viewport
+	
+	-- Get model bounds
 	local cf, size = displayModel:GetBoundingBox()
 	local maxDim = math.max(size.X, size.Y, size.Z)
-	local dist = maxDim * 2
+	local dist = maxDim * 1.5 -- Close-up distance
 	
-	-- Position camera to look at center of bounding box
-	-- Adjust angle to look nice (e.g., isometric-ish view)
-	local center = cf.Position
-	local camPos = center + Vector3.new(dist * 0.5, dist * 0.5, dist)
+	-- Position reference part at origin looking forward (+Z direction)
+	local center = Vector3.new(0, 0, 0)
+	refPart.CFrame = CFrame.new(center) * CFrame.Angles(0, 0, 0)
 	
+	-- Position model at center, facing the same direction as the reference part (toward camera)
+	-- Model faces +Z (forward), so rotate 180 degrees so its "front" faces the camera
+	displayModel:PivotTo(CFrame.new(center) * CFrame.Angles(0, math.rad(180), 0))
+	
+	-- Position camera in front of the model, looking at the model's front face
+	-- Camera is placed along -Z axis (in front of where model faces after rotation)
+	local camPos = center + Vector3.new(0, size.Y * 0.1, dist)
 	camera.CFrame = CFrame.lookAt(camPos, center)
 end
 
