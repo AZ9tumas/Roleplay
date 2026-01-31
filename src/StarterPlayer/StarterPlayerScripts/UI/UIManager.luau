@@ -10,6 +10,7 @@ local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
 local CoinMorphs = require(ReplicatedStorage.Shared.Modules.Game.CoinMorphs)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local MorphServiceClient = require(ReplicatedStorage.Shared.Services.MorphService.MorphServiceClient)
+local GameplayServiceClient = require(ReplicatedStorage.Shared.Services.GameplayService.GameplayServiceClient)
 
 local UIManager = {}
 
@@ -23,16 +24,20 @@ local BUTTON_SCALE_PRESSED = 0.9
 
 -- Info
 -- {itemName: string -> productName: string}
+-- Maps shop UI item names to their actual product names
 local productNames = {
 	["1"] = "MorphPack1",
-	["LimitedMorphTest"] = "LimitedMorphTest",
-	["LimitedTimeMorphTest"] = "LimitedTimeMorphTest",
 	["UnlockMorph"] = "UnlockMorph",
+	-- Shop packs map to MorphPack gamepasses (same gamepass ID)
+	["PoppyPlayTimePack"] = "MorphPack2",  -- PoppyPlayTimePack uses MorphPack2 gamepass
+	["SnakePhasePack"] = "MorphPack1",     -- SnakePhasePack uses MorphPack1 gamepass
 }
 
 -- State
 local currentOpenMenu: string? = nil
 local connections: { RBXScriptConnection } = {}
+local currentFilterMode: string = "None"
+local filterModes = { "None", "Owned", "Not Owned", "A-Z", "Z-A" }
 
 -- UI References
 local gameGui: ScreenGui
@@ -41,6 +46,7 @@ local morphScreen: Frame?
 local coinShopScreen: Frame?
 local shopScreen: Frame?
 local newMorphPopup: Frame?
+local trophyClaimScreen: Frame?
 
 -- Helper: Get player's coins from leaderstats
 local function getPlayerCoins(): number
@@ -54,6 +60,8 @@ local function getPlayerCoins(): number
 	end
 	return DataService:get({ "coins" }) or 0
 end
+
+local function print(msg) end
 
 -- Helper: Setup button hover/click animations
 local function setupButtonAnimation(button: GuiButton)
@@ -166,6 +174,28 @@ local function setupLeftBar()
 			openMenu("Shop")
 		end))
 	end
+
+	-- an addition coin Shop Button and shop button will be found under the shopScreen, they
+	-- server the same purpose as the above buttons (coinShopButton and shopButton). These need
+	-- to be initialized as well. These buttons have the same names, but are located elsewhere.
+	if shopScreen then
+		local innerCoinShopButton = shopScreen:FindFirstChild("CoinShopButton", true) :: GuiButton?
+		local innerShopButton = coinShopScreen:FindFirstChild("ShopButton", true) :: GuiButton?
+		
+		if innerCoinShopButton then
+			setupButtonAnimation(innerCoinShopButton)
+			table.insert(connections, innerCoinShopButton.MouseButton1Click:Connect(function()
+				openMenu("CoinShop")
+			end))
+		end
+		
+		if innerShopButton then
+			setupButtonAnimation(innerShopButton)
+			table.insert(connections, innerShopButton.MouseButton1Click:Connect(function()
+				openMenu("Shop")
+			end))
+		end
+	end
 end
 
 -- Update a morph template's state (locked/unlocked, equipped/unequipped)
@@ -175,6 +205,8 @@ local function updateMorphTemplate(template: Instance, morphName: string, isUnlo
 	if locked then
 		locked.Visible = not isUnlocked
 	end
+
+	template.MorphImage.Image = Morphs[morphName].imageId or ""
 	
 	-- Find PurchaseButton - acts as equip/unequip button when unlocked
 	local purchaseButton = template:FindFirstChild("PurchaseButton") :: GuiButton?
@@ -219,6 +251,77 @@ local function updateCoinShopMorphTemplate(template: Instance, morphName: string
 	end
 end
 
+-- Helper: Apply filter and sort to morph list
+local function applyMorphFilter()
+	if not morphScreen then return end
+	local morphList = morphScreen:FindFirstChild("Page", true)
+	if not morphList then return end
+	local list = morphList:FindFirstChild("MorphList")
+	if not list then return end
+
+	-- Update filter button text
+	local filterButton = morphList:FindFirstChild("Filter") :: TextButton?
+	if filterButton then
+		filterButton.TextLabel.Text = "Filter: " .. currentFilterMode
+	end
+
+	local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
+	local equippedMorph = DataService:get({ "equippedMorph" })
+
+	local sortedItems = {}
+
+	for _, child in list:GetChildren() do
+		if child:IsA("Frame") or child:IsA("ImageLabel") then
+			local morphName = child.Name
+			if Morphs[morphName] then
+				local isUnlocked = unlockedMorphs[morphName] ~= nil
+				local isEquipped = equippedMorph == morphName
+
+				-- Determine visibility
+				local isVisible = true
+				if currentFilterMode == "Owned" then
+					isVisible = isUnlocked
+				elseif currentFilterMode == "Not Owned" then
+					isVisible = not isUnlocked
+				end
+
+				child.Visible = isVisible
+
+				if isVisible then
+					table.insert(sortedItems, {
+						instance = child,
+						name = morphName,
+						isUnlocked = isUnlocked,
+						isEquipped = isEquipped
+					})
+				end
+			end
+		end
+	end
+
+	table.sort(sortedItems, function(a, b)
+		if currentFilterMode == "A-Z" then
+			return a.name < b.name
+		elseif currentFilterMode == "Z-A" then
+			return a.name > b.name
+		else
+			-- Standard Sort (None, Owned, Not Owned)
+			-- Equipped -> Unlocked -> Locked -> Alphabetical
+			if a.isEquipped ~= b.isEquipped then
+				return a.isEquipped -- Equipped first
+			end
+			if a.isUnlocked ~= b.isUnlocked then
+				return a.isUnlocked -- Unlocked next
+			end
+			return a.name < b.name -- Alphabetical fallback
+		end
+	end)
+
+	for i, item in ipairs(sortedItems) do
+		item.instance.LayoutOrder = i
+	end
+end
+
 -- Setup Morph Screen
 local function setupMorphScreen()
 	if not morphScreen then 
@@ -236,45 +339,104 @@ local function setupMorphScreen()
 	local morphList = morphScreen:FindFirstChild("Page", true)
 	print("UIManager: MorphScreen Page found:", morphList ~= nil)
 	if morphList then
+
+		local filterButton = morphList:WaitForChild("Filter") :: TextButton
+		setupButtonAnimation(filterButton)
+		
+		-- Set initial text
+		filterButton.TextLabel.Text = "Filter: " .. currentFilterMode
+		
+		table.insert(connections, filterButton.MouseButton1Click:Connect(function()
+			-- Cycle filter mode
+			local currentIndex = table.find(filterModes, currentFilterMode) or 1
+			local nextIndex = (currentIndex % #filterModes) + 1
+			currentFilterMode = filterModes[nextIndex]
+			
+			applyMorphFilter()
+		end))
+
 		local list = morphList:FindFirstChild("MorphList")
-		print("UIManager: MorphScreen MorphList found:", list ~= nil)
 		if list then
-			print("UIManager: MorphScreen MorphList has", #list:GetChildren(), "children")
+			-- Find template processing
+			local template: Instance? = nil
 			for _, child in list:GetChildren() do
-				if child:IsA("Frame") or child:IsA("ImageLabel") then
-					local morphName = child.Name
-					print("UIManager: MorphScreen child:", morphName, "inMorphs:", Morphs[morphName] ~= nil)
-					if Morphs[morphName] then
-						-- Setup PurchaseButton click
-						local purchaseButton = child:FindFirstChild("PurchaseButton") :: GuiButton?
-						print("UIManager: MorphScreen PurchaseButton found for", morphName, ":", purchaseButton ~= nil)
-						if purchaseButton then
-							setupButtonAnimation(purchaseButton)
-							table.insert(connections, purchaseButton.MouseButton1Click:Connect(function()
-								local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
-								local isUnlocked = unlockedMorphs[morphName] ~= nil
-								local equippedMorph = DataService:get({ "equippedMorph" })
-								
-								print("UIManager: PurchaseButton clicked for morph:", morphName, "isUnlocked:", isUnlocked, "equippedMorph:", equippedMorph)
-								
-								if isUnlocked then
-									-- Equip or unequip
-									if equippedMorph == morphName then
-										print("UIManager: Calling unequipMorph")
-										MorphServiceClient:unequipMorph()
-									else
-										print("UIManager: Calling equipMorph with", morphName)
-										MorphServiceClient:equipMorph(morphName)
-									end
-								else
-									-- Try to purchase
-									print("UIManager: Calling purchaseMorph with", morphName)
-									MorphServiceClient:purchaseMorph(morphName)
-								end
-							end))
-						end
+				if child:IsA("ImageLabel") then
+					template = child
+					break
+				end
+			end
+
+			if template then
+				local morphTemplate = template:Clone()
+
+				-- Clear existing list items
+				for _, child in list:GetChildren() do
+					if child:IsA("ImageLabel") then
+						child:Destroy()
 					end
 				end
+
+				-- Sort keys for consistent order
+				local morphNames = {}
+				for name in pairs(Morphs) do
+					table.insert(morphNames, name)
+				end
+				table.sort(morphNames)
+
+				local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
+
+				-- Populate morphs
+				for _, morphName in morphNames do
+					local item = morphTemplate:Clone()
+					item.Name = morphName
+					item.Visible = true
+					item.Parent = list
+
+					-- Set display name
+					local nameLabel = item:FindFirstChild("MorphName")
+					if nameLabel and nameLabel:IsA("TextLabel") then
+						nameLabel.Text = Morphs[morphName].displayName
+					end
+
+					-- Check ownership / Locked status
+					local isUnlocked = unlockedMorphs[morphName] ~= nil
+					local locked = item:FindFirstChild("Locked")
+					if locked then
+						locked.Visible = not isUnlocked
+					end
+
+					-- Setup interactions
+					local purchaseButton = item:FindFirstChild("PurchaseButton") :: GuiButton?
+					if purchaseButton then
+						setupButtonAnimation(purchaseButton)
+						table.insert(connections, purchaseButton.MouseButton1Click:Connect(function()
+							local currentUnlocked = DataService:get({ "unlockedMorph" }) or {}
+							local currentIsUnlocked = currentUnlocked[morphName] ~= nil
+							local equippedMorph = DataService:get({ "equippedMorph" })
+							
+							print("UIManager: PurchaseButton clicked for morph:", morphName, "isUnlocked:", currentIsUnlocked, "equippedMorph:", equippedMorph)
+							
+							if currentIsUnlocked then
+								-- Equip or unequip
+								if equippedMorph == morphName then
+									print("UIManager: Calling unequipMorph")
+									MorphServiceClient:unequipMorph()
+								else
+									print("UIManager: Calling equipMorph with", morphName)
+									MorphServiceClient:equipMorph(morphName)
+									-- Close menu on equip
+									openMenu("Morph")
+								end
+							else
+								-- Try to purchase
+								print("UIManager: Calling purchaseMorph with", morphName)
+								MorphServiceClient:purchaseMorph(morphName)
+							end
+						end))
+					end
+				end
+			else
+				warn("UIManager: No template ImageLabel found in MorphList")
 			end
 		end
 	end
@@ -367,6 +529,80 @@ local function setupNewMorphPopup()
 	newMorphPopup.Position = UDim2.fromScale(0.5, 1.5)
 end
 
+-- Setup Trophy Claim Screen
+local function setupTrophyClaimScreen()
+	if not trophyClaimScreen then return end
+
+	-- Initially hide
+	trophyClaimScreen.Visible = false
+	
+	-- Note: TrophyClaim is a popup, so we might want to slide specific content or just toggle visibility.
+	-- If it has a slide-in animation, set initial position. 
+	-- Assuming standard popup behavior:
+	-- trophyClaimScreen.Position = UDim2.fromScale(0.5, 1.5) 
+	
+	local content = trophyClaimScreen:FindFirstChild("Content")
+	if content then
+		local acceptButton = content:FindFirstChild("Accept") :: GuiButton?
+		if acceptButton then
+			setupButtonAnimation(acceptButton)
+			table.insert(connections, acceptButton.MouseButton1Click:Connect(function()
+				trophyClaimScreen.Visible = false
+			end))
+		end
+	end
+end
+
+-- Setup viewport camera to view existing models in the viewport frame
+-- Assumes exactly 2 models exist under the viewport frame
+local function setupViewport(viewport: ViewportFrame)
+	-- Find existing models in the viewport frame (exclude Camera instances)
+	local models: {Model} = {}
+	for _, child in viewport:GetChildren() do
+		if child:IsA("Model") then
+			table.insert(models, child)
+		end
+	end
+	
+	-- Only proceed if exactly 2 models exist
+	if #models ~= 2 then
+		warn("setupViewport: Expected 2 models in viewport, found", #models)
+		return
+	end
+	
+	-- Setup Camera (or reuse existing)
+	local camera = viewport:FindFirstChildOfClass("Camera")
+	if not camera then
+		camera = Instance.new("Camera")
+		camera.Parent = viewport
+	end
+	viewport.CurrentCamera = camera
+	
+	-- Get bounding boxes for both models
+	local cf1, size1 = models[1]:GetBoundingBox()
+	local cf2, size2 = models[2]:GetBoundingBox()
+	
+	-- Calculate center point between both models
+	local center1 = cf1.Position
+	local center2 = cf2.Position
+	local midPoint = (center1 + center2) / 2
+	
+	-- Calculate combined size for camera distance
+	local combinedWidth = math.abs(center1.X - center2.X) + math.max(size1.X, size2.X)
+	local maxHeight = math.max(size1.Y, size2.Y)
+	local maxDepth = math.max(size1.Z, size2.Z)
+	local maxDim = math.max(combinedWidth, maxHeight, maxDepth)
+	local dist = maxDim * 1.2 -- Close-up distance
+	
+	-- Make models face the camera (rotate 180 degrees)
+	models[1]:PivotTo(cf1 * CFrame.Angles(0, math.rad(180), 0))
+	models[2]:PivotTo(cf2 * CFrame.Angles(0, math.rad(180), 0))
+	
+	-- Position camera in front of the midpoint, looking at the models' front faces
+	local camPos = midPoint + Vector3.new(0, maxHeight * 0.1, dist)
+	camera.CFrame = CFrame.lookAt(camPos, midPoint)
+end
+
 -- Helper: Get product name from a shop item (item.Name is directly linked to product name)
 local function getProductNameFromItem(item: Instance): string?
 	-- Primary: check if item name directly matches a product or morph
@@ -428,6 +664,13 @@ local function setupShopScreen()
 						-- Get the actual product name from ProductName TextLabel or the item name
 						local productName = getProductNameFromItem(child)
 						print("UIManager: Item", child.Name, "resolved to product:", productName or "nil")
+
+						-- setup viewport camera for existing models (assumes 2 models already exist in viewport)
+						local viewPortFrame: ViewportFrame = child:FindFirstChild("ViewportFrame") :: ViewportFrame
+						if viewPortFrame then
+							-- Setup camera to view the existing models in the viewport
+							setupViewport(viewPortFrame)
+						end
 						
 						-- Setup BuyButton click and animation
 						local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
@@ -486,14 +729,37 @@ local function showNewMorphPopup(morphName: string)
 	
 	-- Auto-dismiss on click
 	local clickConn: RBXScriptConnection?
+	
+	local function dismiss()
+		if clickConn then
+			clickConn:Disconnect()
+			clickConn = nil
+			slideOut(newMorphPopup)
+		end
+	end
+	
 	clickConn = game:GetService("UserInputService").InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			slideOut(newMorphPopup)
-			if clickConn then
-				clickConn:Disconnect()
-			end
+			dismiss()
 		end
 	end)
+	
+	-- Auto-dismiss after 2.5s
+	task.delay(2.5, dismiss)
+end
+
+local function showTrophyClaimPopup(trophyName: string)
+	if not trophyClaimScreen then return end
+	
+	local content = trophyClaimScreen:FindFirstChild("Content")
+	if content then
+		local infoLabel = content:FindFirstChild("Info") :: TextLabel?
+		if infoLabel then
+			infoLabel.Text = "You got a " .. trophyName .. " morph"
+		end
+	end
+	
+	trophyClaimScreen.Visible = true
 end
 
 -- Update all morph templates based on current data
@@ -517,6 +783,9 @@ local function updateAllMorphs()
 						end
 					end
 				end
+				
+				-- Apply filters and sorting
+				applyMorphFilter()
 			end
 		end
 	end
@@ -628,6 +897,11 @@ local function setupDataListeners()
 			end))
 		end
 	end
+	
+	-- Listen for Trophy Claims
+	table.insert(connections, GameplayServiceClient.trophyClaimed:Connect(function(trophyName)
+		showTrophyClaimPopup(trophyName)
+	end))
 end
 
 -- Initialize UI
@@ -642,6 +916,7 @@ function UIManager.init()
 	coinShopScreen = gameGui:FindFirstChild("CoinShop") :: Frame?
 	shopScreen = gameGui:FindFirstChild("Shop") :: Frame?
 	newMorphPopup = gameGui:FindFirstChild("NewMorph") :: Frame?
+	trophyClaimScreen = gameGui:FindFirstChild("TropyClaim") :: Frame?
 	
 	-- Setup all UI components
 	setupLeftBar()
@@ -649,6 +924,7 @@ function UIManager.init()
 	setupCoinShopScreen()
 	setupShopScreen()
 	setupNewMorphPopup()
+	setupTrophyClaimScreen()
 	
 	-- Setup data listeners
 	setupDataListeners()
