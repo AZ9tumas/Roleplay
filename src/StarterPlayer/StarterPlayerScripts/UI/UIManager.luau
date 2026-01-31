@@ -35,8 +35,8 @@ local productNames = {
 
 -- Maps shop item names to their morph model name in ReplicatedStorage.Assets
 local shopItemToMorphModel = {
-	["SnakePhasePack"] = "SnakePhasePack",
-	["PoppyPlayTimePack"] = "PoppyPlayTimePack",
+	["SnakePhasePack"] = { "HungryWormSnakePhase3", "HungryWormSnakePhase2" },
+	["PoppyPlayTimePack"] = { "HungryWormCatNap", "HungryWormDogDay" },
 }
 
 -- State
@@ -650,14 +650,19 @@ local function setupShopScreen()
 						local viewPortFrame: ViewportFrame = child:FindFirstChild("ViewportFrame") :: ViewportFrame
 						if viewPortFrame then
 							-- Check if this item has a mapped morph model
-							local morphModelName = shopItemToMorphModel[child.Name]
-							if morphModelName then
+							local morphModelNames = shopItemToMorphModel[child.Name]
+							if morphModelNames then
 								-- Find the morph model in ReplicatedStorage.Assets
 								local assets = ReplicatedStorage:FindFirstChild("Assets")
 								if assets then
-									local morphModel = assets:FindFirstChild(morphModelName) :: Model?
-									if morphModel then
-										setupViewport(viewPortFrame, morphModel)
+									warn(morphModelNames)
+									for _, morphModelName in ipairs(morphModelNames) do
+										local morphModel = assets:FindFirstChild(morphModelName) :: Model?
+										-- fetch model names from morphModelName
+										if morphModel then
+											warn("Setting up viewport for model:", morphModel, "under", child)
+											setupViewport(viewPortFrame, morphModel)
+										end
 									end
 								end
 							end
