@@ -602,40 +602,7 @@ end
 
 -- Helper: Setup viewport with model - positions camera to look at front face of model
 local function setupViewport(viewport: ViewportFrame, model: Model)
-	viewport:ClearAllChildren()
 	
-	-- Clone model for viewport
-	local displayModel = model:Clone()
-	displayModel.Parent = viewport
-	
-	-- Setup Camera
-	local camera = Instance.new("Camera")
-	camera.Parent = viewport
-	viewport.CurrentCamera = camera
-	
-	-- Get bounding boxes for both models
-	local cf1, size1 = models[1]:GetBoundingBox()
-	local cf2, size2 = models[2]:GetBoundingBox()
-	
-	-- Calculate center point between both models
-	local center1 = cf1.Position
-	local center2 = cf2.Position
-	local midPoint = (center1 + center2) / 2
-	
-	-- Calculate combined size for camera distance
-	local combinedWidth = math.abs(center1.X - center2.X) + math.max(size1.X, size2.X)
-	local maxHeight = math.max(size1.Y, size2.Y)
-	local maxDepth = math.max(size1.Z, size2.Z)
-	local maxDim = math.max(combinedWidth, maxHeight, maxDepth)
-	local dist = maxDim * 1.2 -- Close-up distance
-	
-	-- Make models face the camera (rotate 180 degrees)
-	models[1]:PivotTo(cf1 * CFrame.Angles(0, math.rad(180), 0))
-	models[2]:PivotTo(cf2 * CFrame.Angles(0, math.rad(180), 0))
-	
-	-- Position camera in front of the midpoint, looking at the models' front faces
-	local camPos = midPoint + Vector3.new(0, maxHeight * 0.1, dist)
-	camera.CFrame = CFrame.lookAt(camPos, midPoint)
 end
 
 -- Helper: Get product name from a shop item (item.Name is directly linked to product name)
