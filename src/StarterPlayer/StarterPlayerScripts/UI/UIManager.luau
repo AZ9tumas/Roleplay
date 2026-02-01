@@ -33,12 +33,6 @@ local productNames = {
 	["SnakePhasePack"] = "MorphPack1",     -- SnakePhasePack uses MorphPack1 gamepass
 }
 
--- Maps shop item names to their morph model name in ReplicatedStorage.Assets
-local shopItemToMorphModel = {
-	["SnakePhasePack"] = { "HungryWormSnakePhase3", "HungryWormSnakePhase2" },
-	["PoppyPlayTimePack"] = { "HungryWormCatNap", "HungryWormDogDay" },
-}
-
 -- State
 local currentOpenMenu: string? = nil
 local connections: { RBXScriptConnection } = {}
@@ -619,30 +613,29 @@ local function setupViewport(viewport: ViewportFrame, model: Model)
 	camera.Parent = viewport
 	viewport.CurrentCamera = camera
 	
-	-- Create a reference part for positioning
-	local refPart = Instance.new("Part")
-	refPart.Transparency = 1
-	refPart.Anchored = true
-	refPart.CanCollide = false
-	refPart.Parent = viewport
+	-- Get bounding boxes for both models
+	local cf1, size1 = models[1]:GetBoundingBox()
+	local cf2, size2 = models[2]:GetBoundingBox()
 	
-	-- Get model bounds
-	local cf, size = displayModel:GetBoundingBox()
-	local maxDim = math.max(size.X, size.Y, size.Z)
-	local dist = maxDim * 1.5 -- Close-up distance
+	-- Calculate center point between both models
+	local center1 = cf1.Position
+	local center2 = cf2.Position
+	local midPoint = (center1 + center2) / 2
 	
-	-- Position reference part at origin looking forward (+Z direction)
-	local center = Vector3.new(0, 0, 0)
-	refPart.CFrame = CFrame.new(center) * CFrame.Angles(0, 0, 0)
+	-- Calculate combined size for camera distance
+	local combinedWidth = math.abs(center1.X - center2.X) + math.max(size1.X, size2.X)
+	local maxHeight = math.max(size1.Y, size2.Y)
+	local maxDepth = math.max(size1.Z, size2.Z)
+	local maxDim = math.max(combinedWidth, maxHeight, maxDepth)
+	local dist = maxDim * 1.2 -- Close-up distance
 	
-	-- Position model at center, facing the same direction as the reference part (toward camera)
-	-- Model faces +Z (forward), so rotate 180 degrees so its "front" faces the camera
-	displayModel:PivotTo(CFrame.new(center) * CFrame.Angles(0, math.rad(180), 0))
+	-- Make models face the camera (rotate 180 degrees)
+	models[1]:PivotTo(cf1 * CFrame.Angles(0, math.rad(180), 0))
+	models[2]:PivotTo(cf2 * CFrame.Angles(0, math.rad(180), 0))
 	
-	-- Position camera in front of the model, looking at the model's front face
-	-- Camera is placed along -Z axis (in front of where model faces after rotation)
-	local camPos = center + Vector3.new(0, size.Y * 0.1, dist)
-	camera.CFrame = CFrame.lookAt(camPos, center)
+	-- Position camera in front of the midpoint, looking at the models' front faces
+	local camPos = midPoint + Vector3.new(0, maxHeight * 0.1, dist)
+	camera.CFrame = CFrame.lookAt(camPos, midPoint)
 end
 
 -- Helper: Get product name from a shop item (item.Name is directly linked to product name)
@@ -707,26 +700,11 @@ local function setupShopScreen()
 						local productName = getProductNameFromItem(child)
 						print("UIManager: Item", child.Name, "resolved to product:", productName or "nil")
 
-						-- setup viewport with morph model
+						-- setup viewport camera for existing models (assumes 2 models already exist in viewport)
 						local viewPortFrame: ViewportFrame = child:FindFirstChild("ViewportFrame") :: ViewportFrame
 						if viewPortFrame then
-							-- Check if this item has a mapped morph model
-							local morphModelNames = shopItemToMorphModel[child.Name]
-							if morphModelNames then
-								-- Find the morph model in ReplicatedStorage.Assets
-								local assets = ReplicatedStorage:FindFirstChild("Assets")
-								if assets then
-									warn(morphModelNames)
-									for _, morphModelName in ipairs(morphModelNames) do
-										local morphModel = assets:FindFirstChild(morphModelName) :: Model?
-										-- fetch model names from morphModelName
-										if morphModel then
-											warn("Setting up viewport for model:", morphModel, "under", child)
-											setupViewport(viewPortFrame, morphModel)
-										end
-									end
-								end
-							end
+							-- Setup camera to view the existing models in the viewport
+							setupViewport(viewPortFrame)
 						end
 						
 						-- Setup BuyButton click and animation
