@@ -1,6 +1,7 @@
 export type CoinMorphData = {
 	cost: number,
 	displayName: string,
+	hint: string,
 	animations: {
 		walk: string,
 		idle: string,
@@ -14,6 +15,7 @@ local CoinMorphs: { [string]: CoinMorphData } = {
 	["LimitedMorphTest"] = {
 		cost = 10,
 		displayName = "Limited Morph Test",
+		hint = "Sample hint",
 		animations = {
 			walk = "rbxassetid://118681492030786",
 			run = "rbxassetid://118681492030786",
@@ -24,6 +26,7 @@ local CoinMorphs: { [string]: CoinMorphData } = {
 	["Trapper"] = {
 		cost = 10,
 		displayName = "Trapper",
+		hint = "Sample hint",
 		animations = {
 			walk = "rbxassetid://118681492030786",
 			run = "rbxassetid://118681492030786",
