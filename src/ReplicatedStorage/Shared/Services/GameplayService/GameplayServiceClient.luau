@@ -10,6 +10,7 @@ local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 
 local GameplayServiceClient = {}
 GameplayServiceClient.trophyClaimed = Signal.new()
+GameplayServiceClient.hintPurchased = Signal.new()  -- Fires (morphName, success)
 
 local timerDuration: number = 0
 local remainingTime: number = 0
@@ -36,6 +37,12 @@ local collectedTrophies: { [string]: boolean } = {}
 
 -- Track player's owned morphs (for trophy cleanup)
 local ownedMorphs: { [string]: any } = {}
+
+-- Track player's unlocked hints
+local unlockedHints: { [string]: boolean } = {}
+
+-- Pending hint request (morphName waiting for server response)
+local pendingHintMorph: string? = nil
 
 local function getTimeText(seconds: number): string
 	local days = math.floor(seconds / 86400) -- 86400 seconds in a day
@@ -342,12 +349,51 @@ function GameplayServiceClient._setupTrophies(self: GameplayServiceClient): ()
 end
 
 -- Called from server when player's owned morphs are received
-function GameplayServiceClient.initOwnedMorphs(self: GameplayServiceClient, serverOwnedMorphs: { [string]: any }): ()
+function GameplayServiceClient.initOwnedMorphs(self: GameplayServiceClient, serverOwnedMorphs: { [string]: any }, serverUnlockedHints: { [string]: boolean }?): ()
 	print("GameplayServiceClient: Received owned morphs data")
 	ownedMorphs = serverOwnedMorphs or {}
+	unlockedHints = serverUnlockedHints or {}
 	
 	-- Now that we have the owned morphs, setup trophies (with cleanup)
 	self:_setupTrophies()
+end
+
+-- Called from server when a hint purchase is completed
+function GameplayServiceClient.onHintPurchased(_self: GameplayServiceClient, morphName: string, success: boolean): ()
+	print("GameplayServiceClient: Hint purchase result for " .. tostring(morphName) .. ": " .. tostring(success))
+	
+	if success then
+		-- Add to local unlocked hints cache
+		unlockedHints[morphName] = true
+	end
+	
+	-- Fire signal for UI to handle
+	_self.hintPurchased:Fire(morphName, success)
+end
+
+-- Request to purchase a hint from the server
+function GameplayServiceClient:requestPurchaseHint(morphName: string): ()
+	-- Check if morph is already owned (hints are free)
+	if ownedMorphs[morphName] then
+		-- Fire success directly since hints are free for owned morphs
+		self.hintPurchased:Fire(morphName, true)
+		return
+	end
+	
+	-- Check if hint is already unlocked
+	if unlockedHints[morphName] then
+		-- Fire success directly since hint was already purchased
+		self.hintPurchased:Fire(morphName, true)
+		return
+	end
+	
+	-- Request from server
+	self.networker:fire("purchaseHint", morphName)
+end
+
+-- Check if a hint is unlocked (either morph owned or hint purchased)
+function GameplayServiceClient.isHintUnlocked(_self: GameplayServiceClient, morphName: string): boolean
+	return ownedMorphs[morphName] ~= nil or unlockedHints[morphName] == true
 end
 
 function GameplayServiceClient.onTrophyClaimed(_self: GameplayServiceClient, trophyName: string): ()

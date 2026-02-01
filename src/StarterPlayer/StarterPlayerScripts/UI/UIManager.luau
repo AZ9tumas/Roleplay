@@ -39,6 +39,9 @@ local connections: { RBXScriptConnection } = {}
 local currentFilterMode: string = "None"
 local filterModes = { "None", "Owned", "Not Owned", "A-Z", "Z-A" }
 
+-- Pending hint request state
+local pendingHintMorph: string? = nil
+
 -- UI References
 local gameGui: ScreenGui
 local leftBar: Frame
@@ -223,18 +226,28 @@ local function updateMorphTemplate(template: Instance, morphName: string, isUnlo
 		hintButton.MouseButton1Click:Connect(function()
 			local hintText = Morphs[morphName].hint
 			if hintText and hintText ~= "" and hintFrame then
-				local nameLabel = hintFrame:FindFirstChild("MorphName") :: TextLabel?
-				local hintLabel = hintFrame:FindFirstChild("Hint") :: TextLabel?
+				-- Check if hint is already unlocked (morph owned or hint purchased)
+				local hintUnlocked = GameplayServiceClient:isHintUnlocked(morphName)
 				
-				if nameLabel then
-					nameLabel.Text = Morphs[morphName].displayName
+				if hintUnlocked then
+					-- Show hint directly (free)
+					local nameLabel = hintFrame:FindFirstChild("MorphName") :: TextLabel?
+					local hintLabel = hintFrame:FindFirstChild("Hint") :: TextLabel?
+					
+					if nameLabel then
+						nameLabel.Text = Morphs[morphName].displayName
+					end
+					
+					if hintLabel then
+						hintLabel.Text = hintText
+					end
+					
+					openMenu("Hint")
+				else
+					-- Request purchase (deducts 5 coins)
+					pendingHintMorph = morphName
+					GameplayServiceClient:requestPurchaseHint(morphName)
 				end
-				
-				if hintLabel then
-					hintLabel.Text = hintText
-				end
-				
-				openMenu("Hint")
 			end
 		end)
 	end
@@ -903,6 +916,33 @@ local function setupDataListeners()
 	-- Listen for Trophy Claims
 	table.insert(connections, GameplayServiceClient.trophyClaimed:Connect(function(trophyName)
 		showTrophyClaimPopup(trophyName)
+	end))
+	
+	-- Listen for Hint Purchase Results
+	table.insert(connections, GameplayServiceClient.hintPurchased:Connect(function(morphName: string, success: boolean)
+		-- Only show hint if this was the pending request and purchase was successful
+		if success and pendingHintMorph == morphName and hintFrame then
+			local hintText = Morphs[morphName] and Morphs[morphName].hint
+			if hintText and hintText ~= "" then
+				local nameLabel = hintFrame:FindFirstChild("MorphName") :: TextLabel?
+				local hintLabel = hintFrame:FindFirstChild("Hint") :: TextLabel?
+				
+				if nameLabel then
+					nameLabel.Text = Morphs[morphName].displayName
+				end
+				
+				if hintLabel then
+					hintLabel.Text = hintText
+				end
+				
+				openMenu("Hint")
+			end
+		end
+		
+		-- Clear pending state
+		if pendingHintMorph == morphName then
+			pendingHintMorph = nil
+		end
 	end))
 end
 

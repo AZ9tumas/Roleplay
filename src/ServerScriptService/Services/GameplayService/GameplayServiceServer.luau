@@ -113,6 +113,9 @@ end
 -- Track claimed trophies per player to prevent duplicates
 local claimedTrophies: { [Player]: { [string]: boolean } } = {}
 
+-- Hint purchase cost
+local HINT_COST = 5
+
 -- Debounce cache to prevent touch spam
 local touchDebounce: { [Player]: number } = {}
 local TOUCH_DEBOUNCE_TIME = 2 -- seconds
@@ -459,6 +462,59 @@ function GameplayServiceServer.claimTrophy(self: GameplayServiceServer, player: 
 	self.networker:fire(player, "onTrophyClaimed", trophyName)
 end
 
+-- Purchase a hint for 5 coins (if morph not unlocked and hint not already purchased)
+function GameplayServiceServer.purchaseHint(self: GameplayServiceServer, player: Player, morphName: string): ()
+	if DataService == nil then
+		warn("DataService is nil in GameplayServiceServer!")
+		return
+	end
+	
+	-- Check if player already owns the morph (hints are free if morph is unlocked)
+	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+	if unlockedMorphs[morphName] then
+		-- Morph is unlocked, hint should be shown for free (no purchase needed)
+		-- Client will handle showing the hint directly
+		self.networker:fire(player, "onHintPurchased", morphName, true)
+		return
+	end
+	
+	-- Check if player already purchased this hint
+	local unlockedHints = DataService:get(player, { "unlockedHints" }) or {}
+	if unlockedHints[morphName] then
+		-- Hint already purchased, show it for free
+		self.networker:fire(player, "onHintPurchased", morphName, true)
+		return
+	end
+	
+	-- Check if player has enough coins
+	local coins = DataService:get(player, { "coins" }) or 0
+	if coins < HINT_COST then
+		getNotificationServiceServer():SendNotification(player, "Not enough coins! You need " .. HINT_COST .. " coins.")
+		self.networker:fire(player, "onHintPurchased", morphName, false)
+		return
+	end
+	
+	-- Deduct coins
+	DataService:set(player, { "coins" }, coins - HINT_COST)
+	
+	-- Mark hint as unlocked
+	unlockedHints[morphName] = true
+	DataService:set(player, { "unlockedHints" }, unlockedHints)
+	
+	-- Update leaderstats display
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if leaderstats then
+		local coinsValue = leaderstats:FindFirstChild("Coins")
+		if coinsValue and coinsValue:IsA("IntValue") then
+			coinsValue.Value = coins - HINT_COST
+		end
+	end
+	
+	-- Notify success
+	getNotificationServiceServer():SendNotification(player, "Hint unlocked for " .. HINT_COST .. " coins!")
+	self.networker:fire(player, "onHintPurchased", morphName, true)
+end
+
 function GameplayServiceServer._setupMorphPackStand(self: GameplayServiceServer, standNumber: number): ()
 	local standName = "MorphPackStand" .. standNumber
 	local stand = workspace:WaitForChild("Map")
@@ -610,8 +666,11 @@ function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: 
 			getNotificationServiceServer():SendNotification(player, "Join the group to get free morphs!")
 		end
 		
+		-- Get unlocked hints data
+		local unlockedHints = DataService:get(player, { "unlockedHints" }) or {}
+		
 		print("GameplayServiceServer: Firing initOwnedMorphs")
-		self.networker:fire(player, "initOwnedMorphs", unlockedMorphs)
+		self.networker:fire(player, "initOwnedMorphs", unlockedMorphs, unlockedHints)
 	end)
 end
 
@@ -627,6 +686,7 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 		self.requestMorphPack1Purchase,
 		self.requestMorphPack2Purchase,
 		self.claimTrophy,
+		self.purchaseHint,
 	})
 	
 	task.spawn(function()
