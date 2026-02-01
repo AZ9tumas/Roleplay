@@ -9,6 +9,7 @@ export type MorphData = {
 	animations: Animations,
 	displayName: string,
 	imageId: string?,
+	hint: string,
 }
 
 local Morphs: { [string]: MorphData } = {
@@ -21,6 +22,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Daddy",
 		imageId = "rbxassetid://77036451736886",
+		hint = "Sample hint",
 	},
 	["HungryWormDoey"] = {
 		animations = {
@@ -31,6 +33,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://106266099018473",
 		displayName = "Hungry Worm Doey",
+		hint = "Sample hint",
 	},
 	["HungryWormHamoodHabibi"] = {
 		animations = {
@@ -41,6 +44,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://119803265629236",
 		displayName = "Hungry Worm Hamood Habibi",
+		hint = "Sample hint",
 	},
 	["HungryWormCatNap"] = {
 		animations = {
@@ -51,6 +55,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://106220005831732",
 		displayName = "Hungry Worm Cat Nap",
+		hint = "Sample hint",
 	},
 	["HungryWormDogDay"] = {
 		animations = {
@@ -61,6 +66,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Dog Day",
 		imageId = "rbxassetid://112293379535070",
+		hint = "Sample hint",
 	},
 	["HungryWormHuggy"] = {
 		animations = {
@@ -71,6 +77,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Huggy",
 		imageId = "rbxassetid://97476082082284",
+		hint = "Sample hint",
 	},
 	["HungryWormSmiley"] = {
 		animations = {
@@ -81,6 +88,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://101215419773098",
 		displayName = "Hungry Worm Smiley",
+		hint = "Sample hint",
 	},
 	["HungryWormMommy"] = {
 		animations = {
@@ -91,6 +99,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://85400225818479",
 		displayName = "Hungry Worm Mommy",
+		hint = "Sample hint",
 	},
 	["HungryWormPhase2"] = {
 		animations = {
@@ -101,6 +110,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Phase 2",
 		imageId = "rbxassetid://80105423819154",
+		hint = "Sample hint",
 	},
 	["HungryWormPhase3"] = {
 		animations = {
@@ -111,6 +121,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Phase 3",
 		imageId = "rbxassetid://102540871035901",
+		hint = "Sample hint",
 	},
 	["HungryWorm"] = {
 		animations = {
@@ -120,6 +131,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm",
 		imageId = "rbxassetid://134696926768668",
+		hint = "Sample hint",
 	},
 	["HungryWormCat"] = {
 		animations = {
@@ -129,6 +141,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Cat",
 		imageId = "rbxassetid://133395864974066",
+		hint = "Sample hint",
 	},
 	["HungryWormCatV2"] = {
 		animations = {
@@ -138,6 +151,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Cat V2",
 		imageId = "rbxassetid://107372693379800",
+		hint = "Sample hint",
 	},
 	["HungryWormGolden"] = {
 		animations = {
@@ -147,6 +161,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://102240456513870",
 		displayName = "Hungry Worm Golden",
+		hint = "Sample hint",
 	},
 	["HungryWormPhase4"] = {
 		animations = {
@@ -156,6 +171,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://132061398616609",
 		displayName = "Hungry Worm Phase 4",
+		hint = "Sample hint",
 	},
 	["HungryWormPibble"] = {
 		animations = {
@@ -165,6 +181,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://93874762452727",
 		displayName = "Hungry Worm Pibble",
+		hint = "Sample hint",
 	},
 	["HungryWormSnake"] = {
 		animations = {
@@ -174,6 +191,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Snake",
 		imageId = "rbxassetid://107761319198794",
+		hint = "Sample hint",
 	},
 	["HungryWormSnakeDaddy"] = {
 		animations = {
@@ -183,6 +201,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://95554561696047",
 		displayName = "Hungry Worm Snake Daddy",
+		hint = "Sample hint",
 	},
 	["HungryWormSnakeMommy"] = {
 		animations = {
@@ -192,6 +211,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Snake Mommy",
 		imageId = "rbxassetid://116815900361582",
+		hint = "Sample hint",
 	},
 	["HungryWormSnakePhase2"] = {
 		animations = {
@@ -201,6 +221,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Snake Phase 2",
 		imageId = "rbxassetid://76325755452889",
+		hint = "Sample hint",
 	},
 	["HungryWormSnakePhase3"] = {
 		animations = {
@@ -210,6 +231,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Snake Phase 3",
 		imageId = "rbxassetid://117728428854642",
+		hint = "Sample hint",
 	},
 	["HungryWormSonic"] = {
 		animations = {
@@ -219,6 +241,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Sonic",
 		imageId = "rbxassetid://88694940253856",
+		hint = "Sample hint",
 	},
 	["HungryWormTomato"] = {
 		animations = {
@@ -228,6 +251,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Tomato",
 		imageId = "rbxassetid://127879105932214",
+		hint = "Sample hint",
 	},
 }
 

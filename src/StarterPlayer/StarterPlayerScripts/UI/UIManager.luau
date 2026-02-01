@@ -53,6 +53,7 @@ local coinShopScreen: Frame?
 local shopScreen: Frame?
 local newMorphPopup: Frame?
 local trophyClaimScreen: Frame?
+local hintFrame: Frame?
 
 -- Helper: Get player's coins from leaderstats
 local function getPlayerCoins(): number
@@ -125,6 +126,8 @@ local function openMenu(menuId: string)
 			slideOut(coinShopScreen)
 		elseif currentOpenMenu == "Shop" and shopScreen then
 			slideOut(shopScreen)
+		elseif currentOpenMenu == "Hint" and hintFrame then
+			slideOut(hintFrame)
 		end
 	end
 	
@@ -137,6 +140,8 @@ local function openMenu(menuId: string)
 			slideOut(coinShopScreen)
 		elseif menuId == "Shop" and shopScreen then
 			slideOut(shopScreen)
+		elseif menuId == "Hint" and hintFrame then
+			slideOut(hintFrame)
 		end
 		currentOpenMenu = nil
 	else
@@ -147,6 +152,8 @@ local function openMenu(menuId: string)
 			slideIn(coinShopScreen)
 		elseif menuId == "Shop" and shopScreen then
 			slideIn(shopScreen)
+		elseif menuId == "Hint" and hintFrame then
+			slideIn(hintFrame)
 		end
 		currentOpenMenu = menuId
 	end
@@ -213,6 +220,30 @@ local function updateMorphTemplate(template: Instance, morphName: string, isUnlo
 	end
 
 	template.MorphImage.Image = Morphs[morphName].imageId or ""
+
+
+	-- setup hints
+	local hintButton: TextButton = template:FindFirstChild("Hint") :: TextButton
+	if hintButton then
+		setupButtonAnimation(hintButton)
+		hintButton.MouseButton1Click:Connect(function()
+			local hintText = Morphs[morphName].hint
+			if hintText and hintText ~= "" and hintFrame then
+				local nameLabel = hintFrame:FindFirstChild("MorphName") :: TextLabel?
+				local hintLabel = hintFrame:FindFirstChild("Hint") :: TextLabel?
+				
+				if nameLabel then
+					nameLabel.Text = Morphs[morphName].displayName
+				end
+				
+				if hintLabel then
+					hintLabel.Text = hintText
+				end
+				
+				openMenu("Hint")
+			end
+		end)
+	end
 	
 	-- Find PurchaseButton - acts as equip/unequip button when unlocked
 	local purchaseButton = template:FindFirstChild("PurchaseButton") :: GuiButton?
@@ -556,6 +587,22 @@ local function setupTrophyClaimScreen()
 				trophyClaimScreen.Visible = false
 			end))
 		end
+	end
+end
+
+-- Setup Hint Frame
+local function setupHintFrame()
+	if not hintFrame then return end
+	
+	hintFrame.Visible = false
+	hintFrame.Position = UDim2.fromScale(0.5, 1.5)
+	
+	local closeButton = hintFrame:FindFirstChild("CloseButton") :: GuiButton?
+	if closeButton then
+		setupButtonAnimation(closeButton)
+		table.insert(connections, closeButton.MouseButton1Click:Connect(function()
+			openMenu("Hint")
+		end))
 	end
 end
 
@@ -919,7 +966,7 @@ function UIManager.init()
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
 	gameGui = playerGui:WaitForChild("GameGui") :: ScreenGui
-	
+
 	-- Find UI elements
 	leftBar = gameGui:FindFirstChild("LeftBar") :: Frame
 	morphScreen = gameGui:FindFirstChild("Morph") :: Frame?
@@ -927,6 +974,7 @@ function UIManager.init()
 	shopScreen = gameGui:FindFirstChild("Shop") :: Frame?
 	newMorphPopup = gameGui:FindFirstChild("NewMorph") :: Frame?
 	trophyClaimScreen = gameGui:FindFirstChild("TropyClaim") :: Frame?
+	hintFrame = gameGui:FindFirstChild("Hint") :: Frame?
 	
 	-- Setup all UI components
 	setupLeftBar()
@@ -935,6 +983,7 @@ function UIManager.init()
 	setupShopScreen()
 	setupNewMorphPopup()
 	setupTrophyClaimScreen()
+	setupHintFrame()
 	
 	-- Setup data listeners
 	setupDataListeners()
