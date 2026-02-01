@@ -218,10 +218,13 @@ local function updateMorphTemplate(template: Instance, morphName: string, isUnlo
 
 	template.MorphImage.Image = Morphs[morphName].imageId or ""
 
-
 	-- setup hints
 	local hintButton: TextButton = template:FindFirstChild("Hint") :: TextButton
-	if hintButton then
+	if isUnlocked and hintButton then
+		hintButton.Visible = false
+	end
+
+	if hintButton and not isUnlocked then
 		setupButtonAnimation(hintButton)
 		hintButton.MouseButton1Click:Connect(function()
 			local hintText = Morphs[morphName].hint
