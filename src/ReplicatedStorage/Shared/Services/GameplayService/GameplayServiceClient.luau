@@ -391,9 +391,16 @@ function GameplayServiceClient:requestPurchaseHint(morphName: string): ()
 	self.networker:fire("purchaseHint", morphName)
 end
 
--- Check if a hint is unlocked (either morph owned or hint purchased)
-function GameplayServiceClient.isHintUnlocked(_self: GameplayServiceClient, morphName: string): boolean
-	return ownedMorphs[morphName] ~= nil or unlockedHints[morphName] == true
+-- Check if a hint is unlocked (either morph owned or hint purchased) - fetches from server
+function GameplayServiceClient.isHintUnlocked(self: GameplayServiceClient, morphName: string): boolean
+	local success, result = pcall(function()
+		return self.networker:fetch("isHintUnlocked", morphName)
+	end)
+	if success then
+		return result == true
+	end
+	warn("Failed to check hint unlock status: " .. tostring(result))
+	return false
 end
 
 function GameplayServiceClient.onTrophyClaimed(_self: GameplayServiceClient, trophyName: string): ()

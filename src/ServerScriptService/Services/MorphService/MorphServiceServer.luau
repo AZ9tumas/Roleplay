@@ -95,6 +95,12 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 			cachedCharacterObject.Value = cachedCharacter
 		end
 	end
+
+	-- Notify player of successful morph
+	local notificationService = getNotificationService()
+	if notificationService then
+		notificationService:SendNotification(player, morph .. " ✅")
+	end
 end
 
 function MorphServiceServer.unmorph(_self: MorphServiceServer, player: Player): ()

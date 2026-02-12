@@ -515,6 +515,24 @@ function GameplayServiceServer.purchaseHint(self: GameplayServiceServer, player:
 	self.networker:fire(player, "onHintPurchased", morphName, true)
 end
 
+-- Check if a hint is unlocked for a player (morph owned or hint purchased)
+function GameplayServiceServer.isHintUnlocked(self: GameplayServiceServer, player: Player, morphName: string): boolean
+	if DataService == nil then
+		warn("DataService is nil in GameplayServiceServer!")
+		return false
+	end
+	
+	-- Check if player owns the morph
+	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+	if unlockedMorphs[morphName] then
+		return true
+	end
+	
+	-- Check if player purchased the hint
+	local unlockedHints = DataService:get(player, { "unlockedHints" }) or {}
+	return unlockedHints[morphName] == true
+end
+
 function GameplayServiceServer._setupMorphPackStand(self: GameplayServiceServer, standNumber: number): ()
 	local standName = "MorphPackStand" .. standNumber
 	local stand = workspace:WaitForChild("Map")
@@ -687,6 +705,7 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 		self.requestMorphPack2Purchase,
 		self.claimTrophy,
 		self.purchaseHint,
+		self.isHintUnlocked,
 	})
 	
 	task.spawn(function()

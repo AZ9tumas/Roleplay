@@ -4,6 +4,7 @@
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataService = require(ReplicatedStorage.Packages.DataService).client
 local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
@@ -65,7 +66,13 @@ local function getPlayerCoins(): number
 	return DataService:get({ "coins" }) or 0
 end
 
-local function print(msg) end
+-- Helper: Play button click sound
+local function playButtonSound()
+	local sound = SoundService:FindFirstChild("ButtonPressed")
+	if sound and sound:IsA("Sound") then
+		sound:Play()
+	end
+end
 
 -- Helper: Setup button hover/click animations
 local function setupButtonAnimation(button: GuiButton)
@@ -85,6 +92,7 @@ local function setupButtonAnimation(button: GuiButton)
 	
 	button.MouseButton1Down:Connect(function()
 		TweenService:Create(uiScale, TWEEN_INFO_FAST, { Scale = BUTTON_SCALE_PRESSED }):Play()
+		playButtonSound()
 	end)
 	
 	button.MouseButton1Up:Connect(function()
@@ -226,16 +234,31 @@ local function updateMorphTemplate(template: Instance, morphName: string, isUnlo
 
 	if hintButton and not isUnlocked then
 		setupButtonAnimation(hintButton)
-		hintButton.MouseButton1Click:Connect(function()
+		local hintUnlocked = GameplayServiceClient:isHintUnlocked(morphName)
+
+		if hintUnlocked then
+			hintButton.Label.Text = "HINT"
+			hintButton.Label.TextLabel.Text = "HINT"
+		else
+			hintButton.Label.Text = "🔒 HINT 💰5"
+			hintButton.Label.TextLabel.Text = "🔒 HINT 💰5"
+		end
+
+		hintButton.ZIndex = 4
+
+		hintButton.TextButton.MouseButton1Click:Connect(function()
 			local hintText = Morphs[morphName].hint
+			print(hintText, hintFrame)
 			if hintText and hintText ~= "" and hintFrame then
 				-- Check if hint is already unlocked (morph owned or hint purchased)
-				local hintUnlocked = GameplayServiceClient:isHintUnlocked(morphName)
+				print("here", hintUnlocked)
 				
 				if hintUnlocked then
 					-- Show hint directly (free)
-					local nameLabel = hintFrame:FindFirstChild("MorphName") :: TextLabel?
-					local hintLabel = hintFrame:FindFirstChild("Hint") :: TextLabel?
+					local content = hintFrame:FindFirstChild("Content")
+					local hintCard = content:FindFirstChild("HintCard")
+					local nameLabel = hintCard:FindFirstChild("MorphName") :: TextLabel?
+					local hintLabel = hintCard:FindFirstChild("Hint") :: TextLabel?
 					
 					if nameLabel then
 						nameLabel.Text = Morphs[morphName].displayName
@@ -376,15 +399,12 @@ local function setupMorphScreen()
 		return 
 	end
 	
-	print("UIManager: Setting up MorphScreen")
-	
 	-- Initially hide
 	morphScreen.Visible = false
 	morphScreen.Position = UDim2.fromScale(0.5, 1.5)
 	
 	-- Find MorphList and setup each morph template
 	local morphList = morphScreen:FindFirstChild("Page", true)
-	print("UIManager: MorphScreen Page found:", morphList ~= nil)
 	if morphList then
 
 		local filterButton = morphList:WaitForChild("Filter") :: TextButton
@@ -461,22 +481,17 @@ local function setupMorphScreen()
 							local currentIsUnlocked = currentUnlocked[morphName] ~= nil
 							local equippedMorph = DataService:get({ "equippedMorph" })
 							
-							print("UIManager: PurchaseButton clicked for morph:", morphName, "isUnlocked:", currentIsUnlocked, "equippedMorph:", equippedMorph)
-							
 							if currentIsUnlocked then
 								-- Equip or unequip
 								if equippedMorph == morphName then
-									print("UIManager: Calling unequipMorph")
 									MorphServiceClient:unequipMorph()
 								else
-									print("UIManager: Calling equipMorph with", morphName)
 									MorphServiceClient:equipMorph(morphName)
 									-- Close menu on equip
 									openMenu("Morph")
 								end
 							else
 								-- Try to purchase
-								print("UIManager: Calling purchaseMorph with", morphName)
 								MorphServiceClient:purchaseMorph(morphName)
 							end
 						end))
@@ -496,8 +511,6 @@ local function setupCoinShopScreen()
 		return 
 	end
 	
-	print("UIManager: Setting up CoinShopScreen")
-	
 	-- Initially hide
 	coinShopScreen.Visible = false
 	coinShopScreen.Position = UDim2.fromScale(0.5, 1.5)
@@ -513,20 +526,15 @@ local function setupCoinShopScreen()
 	
 	-- Find ShopList and Morphs container
 	local shopList = coinShopScreen.Content:FindFirstChild("ShopList")
-	print("UIManager: CoinShop ShopList found:", shopList ~= nil)
 	if shopList then
 		local morphsSection = shopList:FindFirstChild("Morphs", true)
-		print("UIManager: CoinShop Morphs section found:", morphsSection ~= nil)
 		if morphsSection then
 			local content = morphsSection:FindFirstChild("Content")
-			print("UIManager: CoinShop Content found:", content ~= nil)
 			if content then
 				-- Check if there's a Grid inside Content
 				local itemContainer = content
-				print("UIManager: CoinShop using container:", itemContainer.Name, "with", #itemContainer:GetChildren(), "children")
 				
 				for _, child in itemContainer:GetChildren() do
-					print("UIManager: CoinShop child:", child.Name, "IsA Frame/ImageLabel:", child:IsA("Frame") or child:IsA("ImageLabel"))
 					if child:IsA("Frame") or child:IsA("ImageLabel") then
 						local morphName = child.Name
 						-- Also check ProductName label for actual morph name
@@ -537,13 +545,10 @@ local function setupCoinShopScreen()
 							end
 						end
 						
-						print("UIManager: CoinShop checking morphName:", morphName, "inCoinMorphs:", CoinMorphs[morphName] ~= nil)
 						if CoinMorphs[morphName] then
 							-- Setup BuyButton click and animation
 							local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
-							print("UIManager: CoinShop BuyButton found:", buyButton ~= nil)
 							if buyButton then
-								print("UIManager: Setting up CoinShop BuyButton animation for", morphName)
 								setupButtonAnimation(buyButton)
 								
 								local capturedMorphName = morphName
@@ -552,10 +557,7 @@ local function setupCoinShopScreen()
 									local isUnlocked = unlockedMorphs[capturedMorphName] ~= nil
 									
 									if not isUnlocked then
-										print("UIManager: Purchasing coin morph", capturedMorphName)
 										MorphServiceClient:purchaseCoinMorph(capturedMorphName)
-									else
-										print("UIManager: Already owns coin morph", capturedMorphName)
 									end
 								end))
 							end
@@ -607,7 +609,7 @@ local function setupHintFrame()
 	hintFrame.Visible = false
 	hintFrame.Position = UDim2.fromScale(0.5, 1.5)
 	
-	local closeButton = hintFrame:FindFirstChild("CloseButton") :: GuiButton?
+	local closeButton = hintFrame:FindFirstChild("Content"):FindFirstChild("CloseButton") :: GuiButton?
 	if closeButton then
 		setupButtonAnimation(closeButton)
 		table.insert(connections, closeButton.MouseButton1Click:Connect(function()
@@ -618,7 +620,7 @@ end
 
 -- Helper: Setup viewport with model - positions camera to look at front face of model
 local function setupViewport(viewport: ViewportFrame, model: Model)
-	
+	-- nothing happens here
 end
 
 -- Helper: Get product name from a shop item (item.Name is directly linked to product name)
@@ -666,22 +668,17 @@ local function setupShopScreen()
 		return
 	end
 	
-	print("UIManager: Setting up Shop screen, found ShopList")
-	
 	-- Process both Morphs and LimitedMorphs sections
 	for _, section in shopList:GetChildren() do
 		if section.Name == "Morphs" or section.Name == "LimitedMorphs" then
 			local content = section:FindFirstChild("Content")
 			if content then
 				local itemContainer = content
-				
-				print("UIManager: Processing section", section.Name, "with", #itemContainer:GetChildren(), "items")
-				
+
 				for _, child in itemContainer:GetChildren() do
 					if child:IsA("Frame") or child:IsA("ImageLabel") then
 						-- Get the actual product name from ProductName TextLabel or the item name
 						local productName = getProductNameFromItem(child)
-						print("UIManager: Item", child.Name, "resolved to product:", productName or "nil")
 
 						-- setup viewport camera for existing models (assumes 2 models already exist in viewport)
 						local viewPortFrame: ViewportFrame = child:FindFirstChild("ViewportFrame") :: ViewportFrame
@@ -693,7 +690,6 @@ local function setupShopScreen()
 						-- Setup BuyButton click and animation
 						local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
 						if buyButton then
-							print("UIManager: Setting up Shop BuyButton animation for", child.Name)
 							setupButtonAnimation(buyButton)
 							
 							-- Store productName in closure
@@ -710,20 +706,13 @@ local function setupShopScreen()
 								if not isUnlocked then
 									-- Prompt the purchase using Products module (same as ProductButton)
 									if productData then
-										print("UIManager: Prompting Robux purchase for", capturedProductName, "productId:", productData.productId)
 										Products.prompt(player, capturedProductName)
 									else
-										-- Try generic morph purchase if no specific product
-										print("UIManager: No product data for", capturedProductName, "- using UnlockMorph")
 										-- For morphs without their own product, use UnlockMorph generic product
 										Products.prompt(player, "UnlockMorph")
 									end
-								else
-									print("UIManager: Already owns", capturedProductName)
 								end
 							end))
-							
-							print("UIManager: Connected BuyButton for", capturedProductName)
 						end
 					end
 				end
@@ -927,8 +916,10 @@ local function setupDataListeners()
 		if success and pendingHintMorph == morphName and hintFrame then
 			local hintText = Morphs[morphName] and Morphs[morphName].hint
 			if hintText and hintText ~= "" then
-				local nameLabel = hintFrame:FindFirstChild("MorphName") :: TextLabel?
-				local hintLabel = hintFrame:FindFirstChild("Hint") :: TextLabel?
+				local content = hintFrame:FindFirstChild("Content")
+				local hintCard = content:FindFirstChild("HintCard")
+				local nameLabel = hintCard:FindFirstChild("MorphName") :: TextLabel?
+				local hintLabel = hintCard:FindFirstChild("Hint") :: TextLabel?
 				
 				if nameLabel then
 					nameLabel.Text = Morphs[morphName].displayName
@@ -979,8 +970,6 @@ function UIManager.init()
 	-- Initial update
 	updateAllMorphs()
 	updateCoinsDisplay()
-	
-	print("UIManager: Initialized")
 end
 
 -- Cleanup

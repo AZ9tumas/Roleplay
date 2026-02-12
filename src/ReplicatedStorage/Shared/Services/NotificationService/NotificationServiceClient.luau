@@ -170,7 +170,12 @@ end
 
 -- Show a notification (queues if one is already showing)
 function NotificationServiceClient.showNotification(_self: NotificationServiceClient, message: string): ()
-	print("HEREEEE")
+	local SoundService = game:GetService("SoundService")
+	local notifSound = SoundService:FindFirstChild("Notification")
+	if notifSound and notifSound:IsA("Sound") then
+		notifSound:Play()
+	end
+
 	if isAnimating then
 		table.insert(notificationQueue, message)
 	else

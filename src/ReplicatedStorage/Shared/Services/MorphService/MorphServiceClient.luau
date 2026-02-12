@@ -122,6 +122,12 @@ end
 function MorphServiceClient.equipMorph(self: MorphServiceClient, morph: string): ()
 	print("[MorphService] Sending equip request for:", morph)
 	self.networker:fire("equipMorph", morph)
+
+	local SoundService = game:GetService("SoundService")
+	local morphSound = SoundService:FindFirstChild("Morph")
+	if morphSound and morphSound:IsA("Sound") then
+		morphSound:Play()
+	end
 end
 
 function MorphServiceClient.unequipMorph(self: MorphServiceClient): ()
