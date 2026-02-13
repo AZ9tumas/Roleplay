@@ -8,7 +8,7 @@ local SoundService = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataService = require(ReplicatedStorage.Packages.DataService).client
 local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
-local CoinMorphs = require(ReplicatedStorage.Shared.Modules.Game.CoinMorphs)
+local CoinTools = require(ReplicatedStorage.Shared.Modules.Game.CoinTools)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local MorphServiceClient = require(ReplicatedStorage.Shared.Services.MorphService.MorphServiceClient)
 local GameplayServiceClient = require(ReplicatedStorage.Shared.Services.GameplayService.GameplayServiceClient)
@@ -300,24 +300,36 @@ local function updateMorphTemplate(template: Instance, morphName: string, isUnlo
 	end
 end
 
--- Update coin shop morph template
-local function updateCoinShopMorphTemplate(template: Instance, morphName: string, isUnlocked: boolean)
+-- Update coin shop tool template
+local function updateCoinShopToolTemplate(template: Instance, toolName: string, isPurchased: boolean)
 	local buyButton = template:FindFirstChild("BuyButton") :: GuiButton?
 	if buyButton then
 		local costLabel = buyButton:FindFirstChild("CostLabel") :: TextLabel?
 		if costLabel then
-			if isUnlocked then
+			if isPurchased then
 				costLabel.Text = "Owned"
 			else
-				local morphData = CoinMorphs[morphName]
-				if morphData then
-					costLabel.Text = tostring(morphData.cost) .. " Coins"
+				local toolData = CoinTools[toolName]
+				if toolData then
+					costLabel.Text = tostring(toolData.cost) .. " Coins"
 				end
+			end
+		end
+
+		-- Update Label > TextLabel inside BuyButton
+		local label1 = buyButton:FindFirstChild("Label")
+		local label2 = label1 and label1:FindFirstChild("TextLabel")
+		if isPurchased then
+			if label1 and label1:IsA("TextLabel") then
+				label1.Text = "PURCHASED"
+			end
+			if label2 and label2:IsA("TextLabel") then
+				label2.Text = "PURCHASED"
 			end
 		end
 		
 		-- Disable button if owned
-		buyButton.Active = not isUnlocked
+		buyButton.Active = not isPurchased
 	end
 end
 
@@ -524,7 +536,7 @@ local function setupCoinShopScreen()
 		end
 	end
 	
-	-- Find ShopList and Morphs container
+	-- Find ShopList and Tools container
 	local shopList = coinShopScreen.Content:FindFirstChild("ShopList")
 	if shopList then
 		local morphsSection = shopList:FindFirstChild("Morphs", true)
@@ -536,30 +548,40 @@ local function setupCoinShopScreen()
 				
 				for _, child in itemContainer:GetChildren() do
 					if child:IsA("Frame") or child:IsA("ImageLabel") then
-						local morphName = child.Name
-						-- Also check ProductName label for actual morph name
+						-- Get tool name from ProductName label
 						local productNameLabel = child:FindFirstChild("ProductName") :: TextLabel?
-						if productNameLabel and productNameLabel:IsA("TextLabel") then
-							if CoinMorphs[child.Name] then
-								morphName = child.Name
-							end
-						end
+						local toolName = child.Name
 						
-						if CoinMorphs[morphName] then
+						if CoinTools[toolName] then
 							-- Setup BuyButton click and animation
 							local buyButton = child:FindFirstChild("BuyButton") :: GuiButton?
 							if buyButton then
 								setupButtonAnimation(buyButton)
-								
-								local capturedMorphName = morphName
-								table.insert(connections, buyButton.MouseButton1Click:Connect(function()
-									local unlockedMorphs = DataService:get({ "unlockedMorph" }) or {}
-									local isUnlocked = unlockedMorphs[capturedMorphName] ~= nil
-									
-									if not isUnlocked then
-										MorphServiceClient:purchaseCoinMorph(capturedMorphName)
+
+								local label1 = buyButton:FindFirstChild("Label")
+								local label2 = label1 and label1:FindFirstChild("TextLabel")
+
+								-- if already purchased, then set labels and do not connect button
+								local purchasedTools = DataService:get({ "purchasedTools" }) or {}
+								local isPurchased = purchasedTools[toolName] ~= nil
+
+								if isPurchased then
+									if label1 and label1:IsA("TextLabel") then
+										label1.Text = "PURCHASED"
 									end
-								end))
+									if label2 and label2:IsA("TextLabel") then
+										label2.Text = "PURCHASED"
+									end
+									buyButton.Active = false
+								else
+									local capturedToolName = toolName
+									table.insert(connections, buyButton.MouseButton1Click:Connect(function()
+										local currentPurchased = DataService:get({ "purchasedTools" }) or {}
+										if not currentPurchased[capturedToolName] then
+											MorphServiceClient:purchaseCoinTool(capturedToolName)
+										end
+									end))
+								end
 							end
 						end
 					end
@@ -797,7 +819,7 @@ local function updateAllMorphs()
 		end
 	end
 	
-	-- Update Coin Shop templates
+	-- Update Coin Shop templates (now tools)
 	if coinShopScreen then
 		local shopList = coinShopScreen:FindFirstChild("ShopList", true)
 		if shopList then
@@ -805,12 +827,17 @@ local function updateAllMorphs()
 			if morphsSection then
 				local content = morphsSection:FindFirstChild("Content")
 				if content then
+					local purchasedTools = DataService:get({ "purchasedTools" }) or {}
 					for _, child in content:GetChildren() do
 						if child:IsA("Frame") or child:IsA("ImageLabel") then
-							local morphName = child.Name
-							if CoinMorphs[morphName] then
-								local isUnlocked = unlockedMorphs[morphName] ~= nil
-								updateCoinShopMorphTemplate(child, morphName, isUnlocked)
+							-- Get tool name from ProductName label
+							local productNameLabel = child:FindFirstChild("ProductName") :: TextLabel?
+							local toolName = if productNameLabel and productNameLabel:IsA("TextLabel")
+								then productNameLabel.Text
+								else child.Name
+							if CoinTools[toolName] then
+								local isPurchased = purchasedTools[toolName] ~= nil
+								updateCoinShopToolTemplate(child, toolName, isPurchased)
 							end
 						end
 					end
@@ -891,6 +918,11 @@ local function setupDataListeners()
 	-- Listen for coins changes
 	table.insert(connections, DataService:getChangedSignal({ "coins" }):Connect(function()
 		updateCoinsDisplay()
+	end))
+	
+	-- Listen for purchased tools changes
+	table.insert(connections, DataService:getIndexChangedSignal({ "purchasedTools" }):Connect(function()
+		updateAllMorphs()
 	end))
 	
 	-- Also listen to leaderstats changes

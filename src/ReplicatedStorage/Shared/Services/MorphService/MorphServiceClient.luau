@@ -138,13 +138,19 @@ function MorphServiceClient.purchaseMorph(self: MorphServiceClient, morph: strin
 	self.networker:fire("purchaseMorph", morph)
 end
 
-function MorphServiceClient.purchaseCoinMorph(self: MorphServiceClient, morphName: string): ()
-	self.networker:fire("purchaseCoinMorph", morphName)
+function MorphServiceClient.purchaseCoinTool(self: MorphServiceClient, toolName: string): ()
+	self.networker:fire("purchaseCoinTool", toolName)
 end
 
-function MorphServiceClient.onCoinMorphPurchased(_self: MorphServiceClient, morphName: string): ()
-	-- Morph was successfully purchased with coins - DataService will handle the update
-	print("Purchased coin morph: " .. morphName)
+function MorphServiceClient.onCoinToolPurchased(_self: MorphServiceClient, toolName: string): ()
+	-- Tool was successfully purchased with coins - DataService will handle the update
+	print("Purchased coin tool: " .. toolName)
+end
+
+-- Returns a table of purchased tool names { [toolName] = { obtainTime = number } }
+function MorphServiceClient.getPurchasedTools(_self: MorphServiceClient): { [string]: any }
+	local DataService = require(game:GetService("ReplicatedStorage").Packages.DataService).client
+	return DataService:get({ "purchasedTools" }) or {}
 end
 
 function MorphServiceClient._initData(self: MorphServiceClient, data): ()
