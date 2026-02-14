@@ -10,6 +10,7 @@ local Networker = require(ReplicatedStorage.Packages.Networker)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local DataService
 local PackRewards = require(ReplicatedStorage.Shared.Modules.Game.PackRewards)
+local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
 
 -- Lazy load MorphServiceServer to avoid circular dependency
 local MorphServiceServer = nil
@@ -43,14 +44,11 @@ local MORPH_PACK_TIME_LIMITS = {
 
 -- Coil stand configuration
 local COIL_STANDS = {
-	["PurpleStand"] = { coilName = "SuperCoil", purchaseName = "BuySuperCoil" },
-	["RedStand"] = { coilName = "SpeedCoil", purchaseName = "BuySpeedCoil" },
-	["RainbowStand"] = { coilName = "RainbowCoil", purchaseName = "BuyRainbowCoil" },
-	["BlueStand"] = { coilName = "GravityCoil", purchaseName = "BuyGravityCoil" },
+	["PurpleStand"] = { coilName = "SuperCoil", purchaseName = "BuySuperCoil", ID = "rbxassetid://97181482586388" },
+	["RedStand"] = { coilName = "SpeedCoil", purchaseName = "BuySpeedCoil", ID = "rbxassetid://97181482586388" },
+	["RainbowStand"] = { coilName = "RainbowCoil", purchaseName = "BuyRainbowCoil", ID = "rbxassetid://97181482586388" },
+	["BlueStand"] = { coilName = "GravityCoil", purchaseName = "BuyGravityCoil", ID = "rbxassetid://97181482586388" },
 }
-
--- Cache which coil a player is purchasing (for product callback)
-local coilPurchaseCache: { [Player]: string } = {}
 
 local GameplayServiceServer = {}
 
@@ -84,30 +82,6 @@ local function getLikes(): number
 		end
 		return 0
 	end
-end
-
--- Track if player has already claimed gold pack (saved to data)
-local function hasPlayerClaimedGoldPack(player: Player): boolean
-	if DataService == nil then
-		warn("DataService is nil in GameplayServiceServer!")
-		return false
-	end
-	
-	local success, goldPackClaimed = pcall(function() return DataService:get(player, { "goldPackClaimed" }) end)
-	if not success then return false end
-
-	return goldPackClaimed == true
-end
-
-local function setPlayerClaimedGoldPack(player: Player): ()
-	-- Check if DataService is available before setting
-	if DataService == nil then
-		warn("DataService not available, cannot save goldPackClaimed")
-		return
-	end
-	pcall(function()
-		DataService:set(player, { "goldPackClaimed" }, true)
-	end)
 end
 
 -- Track claimed trophies per player to prevent duplicates
@@ -214,22 +188,27 @@ end
 
 -- Called when player triggers the proximity prompt after timer is up
 function GameplayServiceServer.claimGoldPack(self: GameplayServiceServer, player: Player): ()
-	-- Validate that the timer has expired for this player
+	-- Only allow claim if timer has expired (naturally or via purchase skip)
 	if not self:isTimerExpired(player) then
 		warn("Player " .. player.Name .. " tried to claim GoldPack before timer expired")
 		return
 	end
 	
-	-- Check if already claimed
-	if hasPlayerClaimedGoldPack(player) then
-		warn("Player " .. player.Name .. " already claimed GoldPack")
-		return
+	-- Give the morph reward
+	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+	if not unlockedMorphs[PackRewards.GoldPack] then
+		local morphService = getMorphServiceServer()
+		morphService:addToData(player, PackRewards.GoldPack)
 	end
+end
+
+-- Called when the BuyGoldPack dev product is purchased (skip timer, lift wall, no morphs)
+function GameplayServiceServer.onGoldPackPurchased(self: GameplayServiceServer, player: Player): ()
+	-- Set join time so that the timer is effectively expired
+	local skippedJoinTime = os.time() - TIMER_DURATION
+	playerJoinTimes[player] = skippedJoinTime
 	
-	-- Save that the player has claimed the gold pack
-	setPlayerClaimedGoldPack(player)
-	
-	-- Notify client that gold pack is claimed (wall lifted, saved)
+	-- Notify client to lift the wall and update timer
 	self.networker:fire(player, "onGoldPackClaimed")
 end
 
@@ -348,82 +327,24 @@ function GameplayServiceServer.giveCoilToPlayer(_self: GameplayServiceServer, pl
 	return true
 end
 
--- Request coil purchase functions (gamepass-based)
-function GameplayServiceServer.requestBuySuperCoil(self: GameplayServiceServer, player: Player): ()
-	local coilName = "SuperCoil"
+-- Request coil purchase (gamepass-based)
+function GameplayServiceServer.requestBuyCoil(self: GameplayServiceServer, player: Player, coilName: string, purchaseName: string): ()
 	if self:_playerHasTool(player, coilName) then
+		print("GameplayServiceServer: Player " .. player.Name .. " already has " .. coilName)
 		return
 	end
 	
 	-- Check if player owns the gamepass, if yes give coil directly
-	local gamepassId = Products.getProductId("BuySuperCoil")
+	local gamepassId = Products.getProductId(purchaseName)
 	if self:_playerOwnsGamepass(player, gamepassId) then
+		print("GameplayServiceServer: Player " .. player.Name .. " owns gamepass for " .. coilName .. ", giving tool")
 		self:giveCoilToPlayer(player, coilName)
 		return
 	end
 	
 	-- Player doesn't own gamepass, prompt purchase
-	coilPurchaseCache[player] = coilName
-	Products.prompt(player, "BuySuperCoil")
-end
-
-function GameplayServiceServer.requestBuySpeedCoil(self: GameplayServiceServer, player: Player): ()
-	local coilName = "SpeedCoil"
-	if self:_playerHasTool(player, coilName) then
-		return
-	end
-	
-	-- Check if player owns the gamepass, if yes give coil directly
-	local gamepassId = Products.getProductId("BuySpeedCoil")
-	if self:_playerOwnsGamepass(player, gamepassId) then
-		self:giveCoilToPlayer(player, coilName)
-		return
-	end
-	
-	-- Player doesn't own gamepass, prompt purchase
-	coilPurchaseCache[player] = coilName
-	Products.prompt(player, "BuySpeedCoil")
-end
-
-function GameplayServiceServer.requestBuyRainbowCoil(self: GameplayServiceServer, player: Player): ()
-	local coilName = "RainbowCoil"
-	if self:_playerHasTool(player, coilName) then
-		return
-	end
-	
-	-- Check if player owns the gamepass, if yes give coil directly
-	local gamepassId = Products.getProductId("BuyRainbowCoil")
-	if self:_playerOwnsGamepass(player, gamepassId) then
-		self:giveCoilToPlayer(player, coilName)
-		return
-	end
-	
-	-- Player doesn't own gamepass, prompt purchase
-	coilPurchaseCache[player] = coilName
-	Products.prompt(player, "BuyRainbowCoil")
-end
-
-function GameplayServiceServer.requestBuyGravityCoil(self: GameplayServiceServer, player: Player): ()
-	local coilName = "GravityCoil"
-	if self:_playerHasTool(player, coilName) then
-		return
-	end
-	
-	-- Check if player owns the gamepass, if yes give coil directly
-	local gamepassId = Products.getProductId("BuyGravityCoil")
-	if self:_playerOwnsGamepass(player, gamepassId) then
-		self:giveCoilToPlayer(player, coilName)
-		return
-	end
-	
-	-- Player doesn't own gamepass, prompt purchase
-	coilPurchaseCache[player] = coilName
-	Products.prompt(player, "BuyGravityCoil")
-end
-
--- Getter for coil purchase cache (used by ProductFunctionsServer)
-function GameplayServiceServer.getCoilPurchaseCache(_self: GameplayServiceServer): { [Player]: string }
-	return coilPurchaseCache
+	print("GameplayServiceServer: Prompting " .. player.Name .. " to purchase " .. purchaseName)
+	Products.prompt(player, purchaseName)
 end
 
 function GameplayServiceServer.claimTrophy(self: GameplayServiceServer, player: Player, trophyName: string): ()
@@ -537,11 +458,34 @@ function GameplayServiceServer._setupMorphPackStand(self: GameplayServiceServer,
 	local standName = "MorphPackStand" .. standNumber
 	local stand = workspace:WaitForChild("Map")
 		and workspace.Map:WaitForChild("Spawn")
-		and workspace.Map.Spawn:FindFirstChild(standName)
+		and workspace.Map.Spawn.PackStand:FindFirstChild(standName)
 	
 	if not stand then
 		warn("MorphPackStand" .. standNumber .. " not found in workspace")
 		return
+	end
+
+	for _, v in pairs(stand:GetChildren()) do
+		if not v:IsA("Model") then continue end
+		local morphName = v.Name
+		
+		-- Play idle animation if morph data exists
+		local morphData = Morphs[morphName]
+		if morphData and morphData.animations and morphData.animations.idle then
+			local humanoid = v:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				local animator = humanoid:FindFirstChildOfClass("Animator")
+				if not animator then
+					animator = Instance.new("Animator")
+					animator.Parent = humanoid
+				end
+				local animation = Instance.new("Animation")
+				animation.AnimationId = morphData.animations.idle
+				local track = animator:LoadAnimation(animation)
+				track.Looped = true
+				track:Play()
+			end
+		end
 	end
 	
 	local packPart = stand:FindFirstChild("PackPart") :: BasePart?
@@ -580,8 +524,8 @@ function GameplayServiceServer._setupCoilStand(self: GameplayServiceServer, stan
 	end
 	
 	local stand = workspace:WaitForChild("Map")
-		and workspace.Map:WaitForChild("Spawn")
-		and workspace.Map.Spawn:FindFirstChild(standName)
+		and workspace.Map:WaitForChild("Spawn") and workspace.Map.Spawn:WaitForChild("ToolStand")
+		and workspace.Map.Spawn.ToolStand:WaitForChild(standName)
 	
 	if not stand then
 		warn("Coil stand " .. standName .. " not found in workspace.Map.Spawn")
@@ -606,16 +550,8 @@ function GameplayServiceServer._setupCoilStand(self: GameplayServiceServer, stan
 			end
 			touchDebounce[player] = currentTime
 			
-			-- Call the appropriate coil purchase function based on stand
-			if standName == "PurpleStand" then
-				self:requestBuySuperCoil(player)
-			elseif standName == "RedStand" then
-				self:requestBuySpeedCoil(player)
-			elseif standName == "RainbowStand" then
-				self:requestBuyRainbowCoil(player)
-			elseif standName == "BlueStand" then
-				self:requestBuyGravityCoil(player)
-			end
+			-- Use stand config to determine which coil to request
+			self:requestBuyCoil(player, standConfig.coilName, standConfig.purchaseName)
 		end
 	end)
 end
@@ -635,13 +571,9 @@ function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: 
 		local joinTime = os.time()
 		playerJoinTimes[player] = joinTime
 		
-		-- Check if player has already claimed gold pack
-		local goldPackClaimed = hasPlayerClaimedGoldPack(player)
-		print("GameplayServiceServer: Gold pack claimed: " .. tostring(goldPackClaimed))
-		
-		-- Send join time, timer duration, and claimed status to client so it can initialize its timer
+		-- Send join time and timer duration to client so it can initialize its timer
 		print("GameplayServiceServer: Firing initTimer")
-		self.networker:fire(player, "initTimer", joinTime, TIMER_DURATION, goldPackClaimed)
+		self.networker:fire(player, "initTimer", joinTime, TIMER_DURATION)
 		
 		-- Send MorphPack time limits to client as a table
 		print("GameplayServiceServer: Firing initMorphPackTimers")
@@ -658,30 +590,42 @@ function GameplayServiceServer._initPlayer(self: GameplayServiceServer, player: 
 		print("GameplayServiceServer: Group member: " .. tostring(inGroup))
 	
 		local groupMorphs = { "HungryWormSmiley", "HungryWormCatV2" }
-		local anyNewUnlocked = false
-		local missingGroupMorphs = false
-	
+		
+		-- Check if the player already owns all group morphs; if so, skip entirely
+		local allGroupMorphsOwned = true
 		for _, morphName in ipairs(groupMorphs) do
-			if unlockedMorphs[morphName] then
-				continue
-			end
-	
-			if inGroup then
-				print("GameplayServiceServer: Awarding group morph: " .. morphName)
-				local morphService = getMorphServiceServer()
-				-- Pass true to suppress "You already own this" if we somehow hit a race condition
-				morphService:addToData(player, morphName, true)
-				unlockedMorphs[morphName] = true -- Update local cache so client gets it
-				anyNewUnlocked = true
-			else
-				missingGroupMorphs = true
+			if not unlockedMorphs[morphName] then
+				allGroupMorphsOwned = false
+				break
 			end
 		end
-	
-		if anyNewUnlocked then
-			getNotificationServiceServer():SendNotification(player, "You received exclusive morphs for being in the group!")
-		elseif missingGroupMorphs and not inGroup then
-			getNotificationServiceServer():SendNotification(player, "Join the group to get free morphs!")
+		
+		if not allGroupMorphsOwned then
+			local anyNewUnlocked = false
+			local missingGroupMorphs = false
+		
+			for _, morphName in ipairs(groupMorphs) do
+				if unlockedMorphs[morphName] then
+					continue
+				end
+		
+				if inGroup then
+					print("GameplayServiceServer: Awarding group morph: " .. morphName)
+					local morphService = getMorphServiceServer()
+					-- Pass true to suppress "You already own this" if we somehow hit a race condition
+					morphService:addToData(player, morphName, true)
+					unlockedMorphs[morphName] = true -- Update local cache so client gets it
+					anyNewUnlocked = true
+				else
+					missingGroupMorphs = true
+				end
+			end
+		
+			if anyNewUnlocked then
+				getNotificationServiceServer():SendNotification(player, "You received exclusive morphs for being in the group!")
+			elseif missingGroupMorphs and not inGroup then
+				getNotificationServiceServer():SendNotification(player, "Join the group to get free morphs!")
+			end
 		end
 		
 		-- Get unlocked hints data
@@ -744,7 +688,6 @@ function GameplayServiceServer.init(self: GameplayServiceServer): ()
 		playerJoinTimes[player] = nil
 		touchDebounce[player] = nil
 		claimedTrophies[player] = nil
-		coilPurchaseCache[player] = nil
 	end)
 end
 

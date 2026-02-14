@@ -228,7 +228,7 @@ local function updateMorphTemplate(template: Instance, morphName: string, isUnlo
 
 	-- setup hints
 	local hintButton: TextButton = template:FindFirstChild("Hint") :: TextButton
-	if isUnlocked and hintButton then
+	if (isUnlocked and hintButton) or Morphs[morphName].hint == nil then
 		hintButton.Visible = false
 	end
 

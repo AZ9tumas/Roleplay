@@ -5,32 +5,59 @@ local MorphServiceServer = require(ServerScriptService.Services.MorphService.Mor
 local GameplayServiceServer = require(ServerScriptService.Services.GameplayService.GameplayServiceServer)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local PackRewards = require(ReplicatedStorage.Shared.Modules.Game.PackRewards)
+local DataService = require(ReplicatedStorage.Packages.DataService).server
 
--- Helper function to handle coil gamepass purchase (used for both dev product and gamepass callbacks)
-local function handleCoilPurchase(player: Player): boolean
-	local coilPurchaseCache = GameplayServiceServer:getCoilPurchaseCache()
-	local coilName = coilPurchaseCache[player]
-	if coilName then
-		coilPurchaseCache[player] = nil
-		return GameplayServiceServer:giveCoilToPlayer(player, coilName)
+-- Mapping from gamepass purchase name to coil tool name
+local COIL_GAMEPASS_MAP = {
+	["BuySuperCoil"] = "SuperCoil",
+	["BuySpeedCoil"] = "SpeedCoil",
+	["BuyRainbowCoil"] = "RainbowCoil",
+	["BuyGravityCoil"] = "GravityCoil",
+}
+
+-- Helper: give coil to player on gamepass purchase
+local function handleCoilGamepassPurchase(player: Player, coilName: string)
+	if not GameplayServiceServer:_playerHasTool(player, coilName) then
+		print("ProductFunctionsServer: Giving " .. coilName .. " to " .. player.Name .. " after gamepass purchase")
+		GameplayServiceServer:giveCoilToPlayer(player, coilName)
 	end
-	return false
 end
 
-return {
+-- Build the product functions table
+local productFunctions: { [number]: (Player, any) -> Enum.ProductPurchaseDecision } = {
 	[Products.getProductId("MorphPack1")] = function(player: Player)
-		-- Give the player the MorphPack1 reward morphs
+		-- Skip if player already owns all morphs in this pack
+		local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+		local allOwned = true
 		for _, morphName in ipairs(PackRewards.MorphPack1) do
-			MorphServiceServer:addToData(player, morphName)
+			if not unlockedMorphs[morphName] then
+				allOwned = false
+				break
+			end
+		end
+		if not allOwned then
+			for _, morphName in ipairs(PackRewards.MorphPack1) do
+				MorphServiceServer:addToData(player, morphName)
+			end
 		end
 		
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end,
 
 	[Products.getProductId("MorphPack2")] = function(player: Player)
-		-- Give the player the MorphPack2 reward morphs
+		-- Skip if player already owns all morphs in this pack
+		local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+		local allOwned = true
 		for _, morphName in ipairs(PackRewards.MorphPack2) do
-			MorphServiceServer:addToData(player, morphName)
+			if not unlockedMorphs[morphName] then
+				allOwned = false
+				break
+			end
+		end
+		if not allOwned then
+			for _, morphName in ipairs(PackRewards.MorphPack2) do
+				MorphServiceServer:addToData(player, morphName)
+			end
 		end
 		
 		return Enum.ProductPurchaseDecision.PurchaseGranted
@@ -48,22 +75,23 @@ return {
 
 
 	[Products.getProductId("BuyGoldPack")] = function(player: Player)
-		-- Check if this is a coil gamepass purchase (using the cache)
-		if handleCoilPurchase(player) then
-			return Enum.ProductPurchaseDecision.PurchaseGranted
-		end
-		
-		-- Otherwise, this is a Gold Pack purchase - give the reward morph
-		local rewardModel = ServerStorage:FindFirstChild("Morphs") and ServerStorage.Morphs:FindFirstChild(PackRewards.GoldPack)
-		
-		if not rewardModel then
-			warn("Reward model " .. PackRewards.GoldPack .. " not found in ServerStorage.Morphs")
-			return Enum.ProductPurchaseDecision.NotProcessedYet
-		end
-		
-		-- Add the morph to the player's unlocked morphs
-		MorphServiceServer:addToData(player, PackRewards.GoldPack)
+		-- Gold Pack purchase = skip timer only (morphs are given via the proximity prompt claim)
+		local GameplayService = require(ServerScriptService.Services.GameplayService.GameplayServiceServer)
+		GameplayService:onGoldPackPurchased(player)
 		
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end,
-} :: { [number]: (Player, any) -> Enum.ProductPurchaseDecision }
+}
+
+-- Register coil gamepass handlers dynamically
+for purchaseName, coilName in COIL_GAMEPASS_MAP do
+	local gamepassId = Products.getProductId(purchaseName)
+	if gamepassId and gamepassId > 0 then
+		productFunctions[gamepassId] = function(player: Player)
+			handleCoilGamepassPurchase(player, coilName)
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+	end
+end
+
+return productFunctions

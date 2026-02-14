@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
+local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
 
 local GameplayServiceClient = {}
 GameplayServiceClient.trophyClaimed = Signal.new()
@@ -58,17 +59,32 @@ local function getTimeText(seconds: number): string
 	end
 end
 
--- Called when gold pack is claimed (either by timer or purchase)
-function GameplayServiceClient.onGoldPackClaimed(_self: GameplayServiceClient): ()
+-- Called when gold pack timer is skipped via purchase - lift barrier immediately
+function GameplayServiceClient.onGoldPackClaimed(self: GameplayServiceClient): ()
 	goldPackClaimed = true
-	-- Wall lifted - player can pass through now
-	-- The proximity prompt connection already saved the data on the server
+	remainingTime = 0
+	if timeLabel then
+		timeLabel.Text = getTimeText(0)
+	end
+
+	-- Enable prompt and lift barrier so player can claim the morphs
+	if not promptEnabled then
+		self:_enablePromptAndConnect()
+	end
 end
 
 function GameplayServiceClient._enablePromptAndConnect(self: GameplayServiceClient): ()
+	-- Lift the barrier wall so the player can walk through
+	local mainWall = workspace:WaitForChild("Map")
+		and workspace.Map:WaitForChild("GoldPack")
+		and workspace.Map.GoldPack:WaitForChild("MainWall")
+	if mainWall then
+		mainWall.CanCollide = false
+	end
+
 	local promptPart = workspace:WaitForChild("Map")
-		and workspace.Map:WaitForChild("GoalPack")
-		and workspace.Map.GoalPack:WaitForChild("Prompt")
+		and workspace.Map:WaitForChild("GoldPack")
+		and workspace.Map.GoldPack:WaitForChild("Prompt")
 	
 	if not promptPart then
 		warn("Prompt part not found in workspace")
@@ -133,8 +149,8 @@ end
 function GameplayServiceClient._getMorphPackTimerLabel(standNumber: number): TextLabel?
 	local standName = "MorphPackStand" .. standNumber
 	local stand = workspace:WaitForChild("Map")
-		and workspace.Map:WaitForChild("Spawn")
-		and workspace.Map.Spawn:FindFirstChild(standName)
+		and workspace.Map:WaitForChild("Spawn") and workspace.Map.Spawn:FindFirstChild("PackStand")
+		and workspace.Map.Spawn.PackStand:FindFirstChild(standName)
 	
 	if not stand then
 		return nil
@@ -171,40 +187,23 @@ end
 
 function GameplayServiceClient.initMorphPackTimers(self: GameplayServiceClient, timeLimits: { [number]: number }): ()
 	local currentTime = os.time()
-	local player = Players.LocalPlayer
 	
 	-- Initialize state for each morph pack from the server-provided time limits
 	for packNumber, timeLimit in pairs(timeLimits) do
 		local timerLabel = self._getMorphPackTimerLabel(packNumber)
 		local isExpired = currentTime >= timeLimit
 		
-		-- Check if player owns the gamepass for this pack
-		local productName = MORPH_PACK_PRODUCTS[packNumber]
-		local isPurchased = false
-		if productName then
-			local gamepassId = Products.getProductId(productName)
-			if gamepassId and gamepassId > 0 then
-				local success, ownsPass = pcall(function()
-					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, gamepassId)
-				end)
-				if success and ownsPass then
-					isPurchased = true
-				end
-			end
-		end
-		
 		morphPackState[packNumber] = {
 			timeLimit = timeLimit,
 			timerLabel = timerLabel,
 			deleted = false,
-			purchased = isPurchased,
+			purchased = false,
 		}
+
+		warn("[GameplayServiceClient] TimerLabel: ", timerLabel)
 		
-		-- If already purchased, show "Already Purchased" instead of timer
-		if isPurchased and timerLabel then
-			timerLabel.Text = "Already Purchased"
 		-- If timer already expired, delete the model
-		elseif isExpired then
+		if isExpired then
 			self._deleteMorphPackModel(packNumber)
 			morphPackState[packNumber].deleted = true
 		elseif timerLabel then
@@ -215,10 +214,9 @@ function GameplayServiceClient.initMorphPackTimers(self: GameplayServiceClient, 
 	end
 end
 
-function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoinTime: number, serverTimerDuration: number, serverGoldPackClaimed: boolean): ()
+function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoinTime: number, serverTimerDuration: number): ()
 	-- Set the timer duration from server
 	timerDuration = serverTimerDuration
-	goldPackClaimed = serverGoldPackClaimed or false
 	
 	-- Calculate remaining time based on when player joined
 	local currentTime = os.time()
@@ -237,15 +235,6 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 	end
 
 	timeLabel = mapGoldPack :: TextLabel
-	
-	-- If already claimed, skip timer display and prompt setup
-	if goldPackClaimed then
-		timeLabel.Text = "00:00:00"
-		remainingTime = 0
-		promptEnabled = true -- Don't need to enable prompt, already claimed
-		return
-	end
-	
 	timeLabel.Text = getTimeText(remainingTime)
 	
 	-- Setup wall touch event for purchase prompt while timer is ongoing
@@ -276,8 +265,7 @@ function GameplayServiceClient.initTimer(self: GameplayServiceClient, serverJoin
 		
 		-- MorphPack timers (global countdown to timestamp) - modular iteration
 		for packNumber, state in pairs(morphPackState) do
-			-- Skip if already purchased (shows "Already Purchased") or deleted
-			if not state.deleted and not state.purchased and state.timeLimit > 0 then
+			if not state.deleted and state.timeLimit > 0 then
 				local remaining = math.max(state.timeLimit - currentTimeNow, 0)
 				
 				if state.timerLabel then
@@ -302,6 +290,17 @@ function GameplayServiceClient._setupTrophyPrompt(self: GameplayServiceClient, t
 		warn("Hitbox not found in trophy: " .. trophyName)
 		return
 	end
+
+	local ui: BillboardGui = hitbox:FindFirstChild("BillboardGui") :: BillboardGui?
+	local imageLabel: ImageLabel = ui and ui:FindFirstChild("ImageLabel") :: ImageLabel?
+	
+	-- Set the image to the morph's imageId from Morphs data
+	if imageLabel then
+		local morphData = Morphs[trophyName]
+		if morphData and morphData.imageId then
+			imageLabel.Image = morphData.imageId
+		end
+	end
 	
 	-- Find the ProximityPrompt using FindFirstChildWhichIsA
 	local prompt = hitbox:FindFirstChildWhichIsA("ProximityPrompt") :: ProximityPrompt?
@@ -309,6 +308,8 @@ function GameplayServiceClient._setupTrophyPrompt(self: GameplayServiceClient, t
 		warn("ProximityPrompt not found in Hitbox of trophy: " .. trophyName)
 		return
 	end
+
+	prompt.ActionText = "Collect!"
 	
 	-- Connect to the Triggered event
 	prompt.Triggered:Connect(function(_player: Player)
@@ -429,27 +430,6 @@ function GameplayServiceClient.init(self: GameplayServiceClient): ()
 	-- Trophy setup is now done in initOwnedMorphs after receiving player's owned morphs from server
 	-- This ensures we can delete trophies for morphs the player already owns
 	
-	-- Listen for gamepass purchases to update MorphPack timers to "Already Purchased"
-	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
-		if player ~= Players.LocalPlayer or not wasPurchased then
-			return
-		end
-		
-		-- Check if purchased gamepass matches a morph pack
-		for packNumber, productName in pairs(MORPH_PACK_PRODUCTS) do
-			local packGamepassId = Products.getProductId(productName)
-			if packGamepassId == gamePassId then
-				-- Update the state and timer label
-				if morphPackState[packNumber] then
-					morphPackState[packNumber].purchased = true
-					if morphPackState[packNumber].timerLabel then
-						morphPackState[packNumber].timerLabel.Text = "Already Purchased"
-					end
-				end
-				break
-			end
-		end
-	end)
 end
 
 type GameplayServiceClient = typeof(GameplayServiceClient) & {

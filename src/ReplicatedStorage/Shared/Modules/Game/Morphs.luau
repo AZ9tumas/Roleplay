@@ -22,7 +22,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Daddy",
 		imageId = "rbxassetid://77036451736886",
-		hint = "Sample hint",
+		hint = "Check next to a tree!",
 	},
 	["HungryWormDoey"] = {
 		animations = {
@@ -33,7 +33,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://106266099018473",
 		displayName = "Hungry Worm Doey",
-		hint = "Sample hint",
+		hint = "Check next to a tree!",
 	},
 	["HungryWormHamoodHabibi"] = {
 		animations = {
@@ -43,7 +43,7 @@ local Morphs: { [string]: MorphData } = {
 			jumpscare = "rbxassetid://96137844701964",
 		},
 		imageId = "rbxassetid://119803265629236",
-		displayName = "Hungry Worm Hamood Habibi",
+		displayName = "Check next to a tree!",
 		hint = "Sample hint",
 	},
 	["HungryWormCatNap"] = {
@@ -55,7 +55,6 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://106220005831732",
 		displayName = "Hungry Worm Cat Nap",
-		hint = "Sample hint",
 	},
 	["HungryWormDogDay"] = {
 		animations = {
@@ -66,7 +65,6 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Dog Day",
 		imageId = "rbxassetid://112293379535070",
-		hint = "Sample hint",
 	},
 	["HungryWormHuggy"] = {
 		animations = {
@@ -77,7 +75,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Huggy",
 		imageId = "rbxassetid://97476082082284",
-		hint = "Sample hint",
+		hint = "Check next to a tree!",
 	},
 	["HungryWormSmiley"] = {
 		animations = {
@@ -88,7 +86,6 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://101215419773098",
 		displayName = "Hungry Worm Smiley",
-		hint = "Sample hint",
 	},
 	["HungryWormMommy"] = {
 		animations = {
@@ -99,7 +96,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://85400225818479",
 		displayName = "Hungry Worm Mommy",
-		hint = "Sample hint",
+		hint = "It was right in front of you the whole time!",
 	},
 	["HungryWormPhase2"] = {
 		animations = {
@@ -110,7 +107,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Phase 2",
 		imageId = "rbxassetid://80105423819154",
-		hint = "Sample hint",
+		hint = "I welcome you to the tunnel of mystery!",
 	},
 	["HungryWormPhase3"] = {
 		animations = {
@@ -121,7 +118,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Phase 3",
 		imageId = "rbxassetid://102540871035901",
-		hint = "Sample hint",
+		hint = "Check next to a tree!",
 	},
 	["HungryWorm"] = {
 		animations = {
@@ -131,7 +128,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm",
 		imageId = "rbxassetid://134696926768668",
-		hint = "Sample hint",
+		hint = "I'm in the spawn, behind something you walk past every time you play!",
 	},
 	["HungryWormCat"] = {
 		animations = {
@@ -141,7 +138,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Cat",
 		imageId = "rbxassetid://133395864974066",
-		hint = "Sample hint",
+		hint = "You really need to start looking around more carefully!",
 	},
 	["HungryWormCatV2"] = {
 		animations = {
@@ -151,7 +148,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Cat V2",
 		imageId = "rbxassetid://107372693379800",
-		hint = "Sample hint",
+		hint = "Chillin' at the beach, catchin' some rays!",
 	},
 	["HungryWormGolden"] = {
 		animations = {
@@ -161,7 +158,6 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://102240456513870",
 		displayName = "Hungry Worm Golden",
-		hint = "Sample hint",
 	},
 	["HungryWormPhase4"] = {
 		animations = {
@@ -171,7 +167,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://132061398616609",
 		displayName = "Hungry Worm Phase 4",
-		hint = "Sample hint",
+		hint = "I'm in the way. You will run into me.",
 	},
 	["HungryWormPibble"] = {
 		animations = {
@@ -181,7 +177,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://93874762452727",
 		displayName = "Hungry Worm Pibble",
-		hint = "Sample hint",
+		hint = "I love trees! I'm probably chilling next to one!",
 	},
 	["HungryWormSnake"] = {
 		animations = {
@@ -191,7 +187,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Snake",
 		imageId = "rbxassetid://107761319198794",
-		hint = "Sample hint",
+		hint = "I like to stay around corners! Check next to one!",
 	},
 	["HungryWormSnakeDaddy"] = {
 		animations = {
@@ -201,7 +197,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		imageId = "rbxassetid://95554561696047",
 		displayName = "Hungry Worm Snake Daddy",
-		hint = "Sample hint",
+		hint = "The waves are nice this time of year!",
 	},
 	["HungryWormSnakeMommy"] = {
 		animations = {
@@ -211,7 +207,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Snake Mommy",
 		imageId = "rbxassetid://116815900361582",
-		hint = "Sample hint",
+		hint = "The avatar shop is a great place to find me!",
 	},
 	["HungryWormSnakePhase2"] = {
 		animations = {
@@ -221,7 +217,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Snake Phase 2",
 		imageId = "rbxassetid://76325755452889",
-		hint = "Sample hint",
+		--hint = "Sample hint",
 	},
 	["HungryWormSnakePhase3"] = {
 		animations = {
@@ -231,7 +227,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Snake Phase 3",
 		imageId = "rbxassetid://117728428854642",
-		hint = "Sample hint",
+		--hint = "Sample hint",
 	},
 	["HungryWormSonic"] = {
 		animations = {
@@ -241,7 +237,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Sonic",
 		imageId = "rbxassetid://88694940253856",
-		hint = "Sample hint",
+		hint = "I was going to the beach, but I got lost on the way.",
 	},
 	["HungryWormTomato"] = {
 		animations = {
@@ -251,7 +247,7 @@ local Morphs: { [string]: MorphData } = {
 		},
 		displayName = "Hungry Worm Tomato",
 		imageId = "rbxassetid://127879105932214",
-		hint = "Sample hint",
+		hint = "These trees feel like a second home to me!",
 	},
 }
 

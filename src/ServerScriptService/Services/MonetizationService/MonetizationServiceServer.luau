@@ -55,6 +55,11 @@ function MonetizationServiceServer.checkOnJoin(self: MonetizationServiceServer, 
 	local playerGamepasses = playerData:get({ "gamepasses" })
 
 	for _gamepassName, prop in Products.ids do
+		-- Only process Gamepass type products on join (skip DevProducts)
+		if prop.type ~= "Gamepass" then
+			continue
+		end
+
 		local gamepassId = prop.productId
 
 		if Sift.Array.contains(playerGamepasses, gamepassId) then
