@@ -38,13 +38,18 @@ local ids: {
 		oneTime = false,
 	},
 	["UnlockMorph"] = {
-		productId = 1597265399,
+		productId = 3536421144,
 		type = "DevProduct",
 		oneTime = false,
 	},
 
 	["BuyGoldPack"] = {
 		productId = 3536421493,
+		type = "DevProduct",
+		oneTime = false,
+	},
+	["UnlockAllMorphs"] = {
+		productId = 3536421345,
 		type = "DevProduct",
 		oneTime = false,
 	},

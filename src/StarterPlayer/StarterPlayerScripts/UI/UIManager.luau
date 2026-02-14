@@ -27,8 +27,6 @@ local BUTTON_SCALE_PRESSED = 0.9
 -- {itemName: string -> productName: string}
 -- Maps shop UI item names to their actual product names
 local productNames = {
-	["1"] = "MorphPack1",
-	["UnlockMorph"] = "UnlockMorph",
 	-- Shop packs map to MorphPack gamepasses (same gamepass ID)
 	["PoppyPlayTimePack"] = "MorphPack2",  -- PoppyPlayTimePack uses MorphPack2 gamepass
 	["SnakePhasePack"] = "MorphPack1",     -- SnakePhasePack uses MorphPack1 gamepass
@@ -219,9 +217,16 @@ end
 -- Update a morph template's state (locked/unlocked, equipped/unequipped)
 local function updateMorphTemplate(template: Instance, morphName: string, isUnlocked: boolean, isEquipped: boolean)
 	-- Remove "Locked" ImageLabel to show as unlocked
-	local locked = template:FindFirstChild("Locked") :: ImageLabel?
+	local locked = template:FindFirstChild("Locked") :: ImageButton?
 	if locked then
 		locked.Visible = not isUnlocked
+
+		if not isUnlocked then
+			locked.MouseButton1Click:Connect(function()
+				-- Prompt the UnlockMorph dev product purchase
+				MorphServiceClient:purchaseMorph(morphName)
+			end)
+		end
 	end
 
 	template.MorphImage.Image = Morphs[morphName].imageId or ""
@@ -418,6 +423,14 @@ local function setupMorphScreen()
 	-- Find MorphList and setup each morph template
 	local morphList = morphScreen:FindFirstChild("Page", true)
 	if morphList then
+
+		-- setup unlock all
+		local unlockAllButton = morphList:FindFirstChild("UnlockButton") :: ImageButton?
+		setupButtonAnimation(unlockAllButton)
+
+		unlockAllButton.MouseButton1Click:Connect(function()
+			Products.prompt(Players.LocalPlayer, "UnlockAllMorphs")
+		end)
 
 		local filterButton = morphList:WaitForChild("Filter") :: TextButton
 		setupButtonAnimation(filterButton)

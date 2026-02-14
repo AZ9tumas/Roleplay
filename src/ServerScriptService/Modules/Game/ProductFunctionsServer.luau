@@ -5,6 +5,7 @@ local MorphServiceServer = require(ServerScriptService.Services.MorphService.Mor
 local GameplayServiceServer = require(ServerScriptService.Services.GameplayService.GameplayServiceServer)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local PackRewards = require(ReplicatedStorage.Shared.Modules.Game.PackRewards)
+local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
 local DataService = require(ReplicatedStorage.Packages.DataService).server
 
 -- Mapping from gamepass purchase name to coil tool name
@@ -79,6 +80,17 @@ local productFunctions: { [number]: (Player, any) -> Enum.ProductPurchaseDecisio
 		local GameplayService = require(ServerScriptService.Services.GameplayService.GameplayServiceServer)
 		GameplayService:onGoldPackPurchased(player)
 		
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end,
+
+	[Products.getProductId("UnlockAllMorphs")] = function(player: Player)
+		-- Unlock every morph registered in Morphs module
+		local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
+		for morphName, _ in Morphs do
+			if not unlockedMorphs[morphName] then
+				MorphServiceServer:addToData(player, morphName)
+			end
+		end
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end,
 }
