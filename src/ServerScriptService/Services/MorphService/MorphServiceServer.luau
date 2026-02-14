@@ -5,11 +5,23 @@ local DataStoreService = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local DataService = require(ReplicatedStorage.Packages.DataService).server
 local Networker = require(ReplicatedStorage.Packages.Networker)
 local Morphs = require(ReplicatedStorage.Shared.Modules.Game.Morphs)
+local CoinTools = require(ReplicatedStorage.Shared.Modules.Game.CoinTools)
 local Products = require(ReplicatedStorage.Shared.Modules.Game.Products)
 local MorphServiceUtil = require(ReplicatedStorage.Shared.Services.MorphService.MorphServiceUtil)
+
+-- Lazy require to avoid circular dependency (NotificationService may not be initialized yet)
+local NotificationServiceServer = nil
+local function getNotificationService()
+	if NotificationServiceServer == nil then
+		NotificationServiceServer = require(ServerScriptService.Services.NotificationService.NotificationServiceServer)
+	end
+	return NotificationServiceServer
+end
 
 local MORPH_UNLOCKER_TAG = "MorphUnlocker"
 local SOLD_MORPH_DATASTORE_NAME = "SoldMorphDataTest7"
@@ -29,7 +41,7 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 		return
 	end
 
-	local morphModel = ReplicatedStorage.Assets.Morphs:FindFirstChild(morph)
+	local morphModel = ServerStorage.Assets.Morphs:FindFirstChild(morph)
 	if not morphModel then
 		return
 	end
@@ -50,6 +62,13 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 
 	--> Character Setup
 	local newCharacter = morphModel:Clone()
+	
+	-- Apply strict tag for client detection
+	CollectionService:AddTag(newCharacter, "Morph")
+	CollectionService:AddTag(newCharacter, "MorphModel")
+	
+	newCharacter:SetAttribute("MorphName", morph)
+
 	local humanoidRootPart = newCharacter.PrimaryPart :: BasePart
 	local humanoid = newCharacter:FindFirstChild("Humanoid") :: Humanoid
 	newCharacter.Name = player.Name
@@ -59,25 +78,12 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 		return newCharacter:Destroy()
 	end
 
-	local animateScript = ReplicatedStorage.Assets.Animate:Clone()
-	animateScript.Parent = newCharacter
-	animateScript.Enabled = true
-	for state: any, animationId: any in morphData.animations do
-		local stringValue = Instance.new("StringValue")
-		stringValue.Name = state
-		stringValue.Parent = animateScript
-		local animation = Instance.new("Animation")
-		animation.AnimationId = animationId
-		animation.Name = "Animation1"
-		animation.Parent = stringValue
-	end
-
 	oldhumanoid.AutoJumpEnabled = false
 
 	player.Character = newCharacter
 	newCharacter.Parent = workspace
 	humanoidRootPart.CFrame = cachedCFrame
-	humanoid.JumpPower = 0
+	--humanoid.JumpPower = 0
 
 	--> Character cleanup
 	task.wait()
@@ -89,6 +95,12 @@ function MorphServiceServer.morph(_self: MorphServiceServer, player: Player, mor
 			cachedCharacter.Parent = ReplicatedStorage.CachedCharacters
 			cachedCharacterObject.Value = cachedCharacter
 		end
+	end
+
+	-- Notify player of successful morph
+	local notificationService = getNotificationService()
+	if notificationService then
+		notificationService:SendNotification(player, morph .. " ✅")
 	end
 end
 
@@ -124,11 +136,12 @@ function MorphServiceServer.unmorph(_self: MorphServiceServer, player: Player): 
 end
 
 function MorphServiceServer.equipMorph(self: MorphServiceServer, player, morph)
+	print(`[MorphServiceServer] Received equip request from {player} for: {morph}`)
 	if not morph then
 		return
 	end
 
-	local morphModel = ReplicatedStorage.Assets.Morphs:FindFirstChild(morph)
+	local morphModel = ServerStorage.Assets.Morphs:FindFirstChild(morph)
 	if not morphModel then
 		return
 	end
@@ -142,7 +155,8 @@ function MorphServiceServer.unequipMorph(self: MorphServiceServer, player)
 	self:unmorph(player)
 end
 
-function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player, morph: string)
+function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player, morph: string, suppressSameOwned: boolean?)
+	suppressSameOwned = suppressSameOwned or true
 	local morphData = Morphs[morph]
 	if not morphData then
 		return
@@ -150,7 +164,17 @@ function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player,
 
 	local data = DataService:get(player, { "unlockedMorph" })
 	local foundInData = data[morph]
+	
+	-- Get notification service
+	local notificationService = getNotificationService()
+	print(notificationService)
+	
 	if foundInData then
+		-- Player already owns this morph
+		if notificationService and not suppressSameOwned then
+			warn(suppressSameOwned)
+			notificationService:SendNotification(player, "You already own this")
+		end
 		return
 	end
 
@@ -159,6 +183,11 @@ function MorphServiceServer.addToData(_self: MorphServiceServer, player: Player,
 	} :: MORPH_DATA_TEMPLATE
 
 	DataService:set(player, { "unlockedMorph", morph }, morphTemplate)
+	
+	-- Send congratulations notification for new morph
+	if notificationService then
+		notificationService:SendNotification(player, "Congratz. You got " .. morph)
+	end
 end
 
 function MorphServiceServer.buyLimitedAmountMorph(self, morph, receiptInfo, player)
@@ -235,31 +264,41 @@ function MorphServiceServer.purchaseMorph(self: MorphServiceServer, player: Play
 	end
 end
 
-function MorphServiceServer.purchaseCoinMorph(self: MorphServiceServer, player: Player, morphName: string): boolean
-	local CoinMorphs = require(ReplicatedStorage.Shared.Modules.Game.CoinMorphs)
-	local morphData = CoinMorphs[morphName]
-	if not morphData then
+function MorphServiceServer.purchaseCoinTool(self: MorphServiceServer, player: Player, toolName: string): boolean
+	local toolData = CoinTools[toolName]
+	if not toolData then
+		warn("[MorphServiceServer] Tool not found in CoinTools:", toolName)
 		return false
 	end
 
-	-- Validate morph exists in main Morphs table
-	if not Morphs[morphName] then
+	-- Validate tool exists in ServerStorage.Assets.Tools
+	local toolsFolder = ServerStorage:FindFirstChild("Assets") and ServerStorage.Assets:FindFirstChild("Tools")
+	if not toolsFolder or not toolsFolder:FindFirstChild(toolName) then
+		warn("[MorphServiceServer] Tool not found in ServerStorage.Assets.Tools:", toolName)
 		return false
 	end
 
 	local currentCoins = DataService:get(player, { "coins" }) or 0
-	if currentCoins < morphData.cost then
+	if currentCoins < toolData.cost then
+		local notificationService = getNotificationService()
+		if notificationService then
+			notificationService:SendNotification(player, "Not enough coins!")
+		end
 		return false
 	end
 
-	-- Check if already unlocked
-	local unlockedMorphs = DataService:get(player, { "unlockedMorph" }) or {}
-	if unlockedMorphs[morphName] then
+	-- Check if already purchased
+	local purchasedTools = DataService:get(player, { "purchasedTools" }) or {}
+	if purchasedTools[toolName] then
+		local notificationService = getNotificationService()
+		if notificationService then
+			notificationService:SendNotification(player, "You already own this tool!")
+		end
 		return false
 	end
 
 	-- Deduct coins and save to datastore
-	local newCoins = currentCoins - morphData.cost
+	local newCoins = currentCoins - toolData.cost
 	DataService:set(player, { "coins" }, newCoins)
 
 	-- Update leaderstats
@@ -271,15 +310,60 @@ function MorphServiceServer.purchaseCoinMorph(self: MorphServiceServer, player: 
 		end
 	end
 
-	-- Unlock morph (saved to datastore via DataService)
-	DataService:set(player, { "unlockedMorph", morphName }, {
+	-- Save purchased tool to datastore
+	DataService:set(player, { "purchasedTools", toolName }, {
 		obtainTime = os.time(),
 	})
 
+	-- Give tool to player
+	self:_giveToolToPlayer(player, toolName)
+
 	-- Notify client
-	self.networker:fire(player, "onCoinMorphPurchased", morphName)
+	self.networker:fire(player, "onCoinToolPurchased", toolName)
+
+	local notificationService = getNotificationService()
+	if notificationService then
+		notificationService:SendNotification(player, "Purchased " .. (toolData.displayName or toolName) .. " ✅")
+	end
 
 	return true
+end
+
+-- Give a tool to the player's Backpack and StarterGear (persists across respawns)
+function MorphServiceServer._giveToolToPlayer(_self: MorphServiceServer, player: Player, toolName: string): ()
+	local toolsFolder = ServerStorage:FindFirstChild("Assets") and ServerStorage.Assets:FindFirstChild("Tools")
+	if not toolsFolder then return end
+
+	local toolTemplate = toolsFolder:FindFirstChild(toolName)
+	if not toolTemplate then
+		warn("[MorphServiceServer] Tool template not found:", toolName)
+		return
+	end
+
+	-- Add to StarterGear so it persists across respawns
+	local starterGear = player:FindFirstChild("StarterGear")
+	if starterGear and not starterGear:FindFirstChild(toolName) then
+		local gearClone = toolTemplate:Clone()
+		gearClone.Parent = starterGear
+	end
+
+	-- Add to current Backpack for immediate use
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack and not backpack:FindFirstChild(toolName) then
+		local backpackClone = toolTemplate:Clone()
+		backpackClone.Parent = backpack
+	end
+end
+
+-- Load all previously purchased tools for a player (called on join)
+function MorphServiceServer._loadPurchasedTools(self: MorphServiceServer, player: Player): ()
+	local playerData = DataService:waitForData(player)
+	if not playerData then return end
+
+	local purchasedTools = playerData:get({ "purchasedTools" }) or {}
+	for toolName, _ in pairs(purchasedTools) do
+		self:_giveToolToPlayer(player, toolName)
+	end
 end
 
 function MorphServiceServer._setupUnlocker(self: MorphServiceServer, unlocker: BasePart): ()
@@ -337,7 +421,7 @@ function MorphServiceServer.init(self: MorphServiceServer, resetData: boolean?):
 		self.equipMorph,
 		self.unequipMorph,
 		self.purchaseMorph,
-		self.purchaseCoinMorph,
+		self.purchaseCoinTool,
 	})
 
 	for _, unlocker in CollectionService:GetTagged(MORPH_UNLOCKER_TAG) do
@@ -350,6 +434,11 @@ function MorphServiceServer.init(self: MorphServiceServer, resetData: boolean?):
 		cachedCharacter.Parent = player
 
 		self:_initData(player)
+
+		-- Load previously purchased tools into player's backpack
+		task.spawn(function()
+			self:_loadPurchasedTools(player)
+		end)
 	end
 
 	for key, data in Products.ids do
